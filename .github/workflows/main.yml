@@ -1,0 +1,3585 @@
+name: Build APK Lịch Song Tròn & Giá Nông Sản (v13.0 Server-Driven UI)
+
+on: [push, workflow_dispatch]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Cài đặt JDK 21 (LTS)
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: 3. Cài đặt Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: 4. Khởi tạo mã nguồn Lịch Song Tròn + Server-Driven UI v13.0
+        run: |
+          rm -rf app gradle.properties settings.gradle build.gradle GenerateAssets.java
+          mkdir -p app/src/main/java/com/daklak/eakiet/lichvannien
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/drawable-xhdpi
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+          mkdir -p app/src/main/res/xml
+          mkdir -p app/src/main/res/values
+
+          # 4.1. Cấu hình Gradle (Không dùng thư viện ngoài, loại bỏ hoàn toàn Jsoup)
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LichVanNienTV"
+          include ':app'
+          EOF
+
+          cat << 'EOF' > build.gradle
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+              id 'org.jetbrains.kotlin.android' version '2.0.20' apply false
+          }
+          EOF
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          EOF
+
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+
+          android {
+              namespace 'com.daklak.eakiet.lichvannien'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId "com.daklak.eakiet.lichvannien"
+                  minSdk 21
+                  targetSdk 28
+                  versionCode 17
+                  versionName "13.0-DualCircle-SDUI"
+              }
+
+              buildTypes {
+                  debug {
+                      minifyEnabled false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+          }
+
+          dependencies {
+          }
+          EOF
+
+          # 4.2. Tạo Logo PNG Song Tròn Nhật-Nguyệt & Banner 16:9 bằng Java 2D
+          cat << 'EOF' > GenerateAssets.java
+          import java.awt.*;
+          import java.awt.geom.*;
+          import java.awt.image.BufferedImage;
+          import java.io.File;
+          import javax.imageio.ImageIO;
+
+          public class GenerateAssets {
+              public static void main(String[] args) throws Exception {
+                  drawIcon(144, false, "app/src/main/res/mipmap-hdpi/ic_launcher.png");
+                  drawIcon(192, false, "app/src/main/res/mipmap-xhdpi/ic_launcher.png");
+                  drawIcon(192, true,  "app/src/main/res/mipmap-xhdpi/ic_launcher_round.png");
+                  drawIcon(288, false, "app/src/main/res/mipmap-xxhdpi/ic_launcher.png");
+                  drawIcon(288, true,  "app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png");
+                  drawBanner(320, 180, "app/src/main/res/drawable-xhdpi/ic_banner.png");
+              }
+
+              private static void setupHints(Graphics2D g) {
+                  g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                  g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                  g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+              }
+
+              private static void drawIcon(int size, boolean round, String path) throws Exception {
+                  BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+                  Graphics2D g = img.createGraphics();
+                  setupHints(g);
+
+                  Shape clip = round
+                      ? new Ellipse2D.Float(0, 0, size, size)
+                      : new RoundRectangle2D.Float(0, 0, size, size, size * 0.22f, size * 0.22f);
+                  g.setClip(clip);
+
+                  GradientPaint bg = new GradientPaint(
+                      0, 0, new Color(11, 12, 16),
+                      size, size, new Color(22, 24, 35)
+                  );
+                  g.setPaint(bg);
+                  g.fillRect(0, 0, size, size);
+
+                  int r = (int)(size * 0.26f);
+                  int cy = (int)(size * 0.50f);
+                  int cxLeft = (int)(size * 0.34f);
+                  int cxRight = (int)(size * 0.66f);
+
+                  GradientPaint sun = new GradientPaint(
+                      cxLeft - r, cy, new Color(255, 230, 0),
+                      cxLeft + r, cy, new Color(217, 119, 6)
+                  );
+                  g.setPaint(sun);
+                  g.fillOval(cxLeft - r, cy - r, r * 2, r * 2);
+
+                  GradientPaint moon = new GradientPaint(
+                      cxRight - r, cy, new Color(224, 242, 254),
+                      cxRight + r, cy, new Color(2, 132, 199)
+                  );
+                  g.setPaint(moon);
+                  g.fillOval(cxRight - r, cy - r, r * 2, r * 2);
+
+                  g.setColor(new Color(255, 255, 255, 210));
+                  g.setStroke(new BasicStroke(size * 0.02f));
+                  g.drawOval(cxLeft - (int)(r * 0.85f), cy - (int)(r * 0.85f), (int)(r * 1.7f), (int)(r * 1.7f));
+                  g.drawOval(cxRight - (int)(r * 0.85f), cy - (int)(r * 0.85f), (int)(r * 1.7f), (int)(r * 1.7f));
+
+                  g.setFont(new Font("SansSerif", Font.BOLD, (int)(size * 0.19f)));
+                  FontMetrics fm = g.getFontMetrics();
+                  g.setColor(new Color(59, 40, 16));
+                  g.drawString("28", cxLeft - fm.stringWidth("28") / 2, cy + (int)(size * 0.07f));
+                  g.setColor(new Color(8, 47, 73));
+                  g.drawString("19", cxRight - fm.stringWidth("19") / 2, cy + (int)(size * 0.07f));
+
+                  g.dispose();
+                  ImageIO.write(img, "PNG", new File(path));
+              }
+
+              private static void drawBanner(int w, int h, String path) throws Exception {
+                  BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+                  Graphics2D g = img.createGraphics();
+                  setupHints(g);
+
+                  GradientPaint bg = new GradientPaint(
+                      0, 0, new Color(11, 12, 16),
+                      w, h, new Color(34, 24, 18)
+                  );
+                  g.setPaint(bg);
+                  g.fillRoundRect(0, 0, w, h, 24, 24);
+
+                  GradientPaint sun = new GradientPaint(18, 0, new Color(255, 230, 0), 94, 0, new Color(217, 119, 6));
+                  g.setPaint(sun);
+                  g.fillOval(18, 52, 76, 76);
+
+                  GradientPaint moon = new GradientPaint(102, 0, new Color(224, 242, 254), 178, 0, new Color(2, 132, 199));
+                  g.setPaint(moon);
+                  g.fillOval(102, 52, 76, 76);
+
+                  g.setColor(new Color(255, 255, 255, 200));
+                  g.setStroke(new BasicStroke(2f));
+                  g.drawOval(24, 58, 64, 64);
+                  g.drawOval(108, 58, 64, 64);
+
+                  g.setFont(new Font("SansSerif", Font.BOLD, 10));
+                  g.setColor(new Color(253, 224, 71));
+                  g.drawString("DƯƠNG LỊCH", 26, 44);
+                  g.setColor(new Color(125, 211, 252));
+                  g.drawString("ÂM LỊCH", 118, 44);
+
+                  g.setFont(new Font("SansSerif", Font.BOLD, 20));
+                  g.setColor(new Color(59, 40, 16));
+                  g.drawString("28|11", 31, 98);
+                  g.setColor(new Color(8, 47, 73));
+                  g.drawString("19|10", 115, 98);
+
+                  g.setColor(new Color(241, 184, 31));
+                  g.setFont(new Font("SansSerif", Font.BOLD, 12));
+                  g.drawString("★ EA KIẾT • ĐẮK LẮK", 190, 62);
+
+                  g.setColor(Color.WHITE);
+                  g.setFont(new Font("SansSerif", Font.BOLD, 17));
+                  g.drawString("LỊCH & GIÁ TV", 190, 92);
+
+                  g.setColor(new Color(110, 231, 183));
+                  g.setFont(new Font("SansSerif", Font.BOLD, 11));
+                  g.drawString("CÀ PHÊ • TIÊU • SẦU RIÊNG", 190, 116);
+                  g.setColor(new Color(203, 213, 225));
+                  g.drawString("VÀNG SJC • XĂNG DẦU", 190, 134);
+
+                  g.dispose();
+                  ImageIO.write(img, "PNG", new File(path));
+              }
+          }
+          EOF
+          java -Djava.awt.headless=true GenerateAssets.java
+          rm -f GenerateAssets.java
+
+          # 4.3. Tạo Adaptive Icon Vector
+          cat << 'EOF' > app/src/main/res/drawable/ic_launcher_bg.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#0B0C10"
+                  android:pathData="M0,0h108v108h-108z"/>
+              <path
+                  android:fillColor="#161823"
+                  android:pathData="M0,62 L108,28 L108,108 L0,108 Z"/>
+          </vector>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/drawable/ic_launcher_fg.xml
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#F1B81F"
+                  android:pathData="M39,54m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0"/>
+              <path
+                  android:fillColor="#38BDF8"
+                  android:pathData="M69,54m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0"/>
+          </vector>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@drawable/ic_launcher_bg" />
+              <foreground android:drawable="@drawable/ic_launcher_fg" />
+              <monochrome android:drawable="@drawable/ic_launcher_fg" />
+          </adaptive-icon>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@drawable/ic_launcher_bg" />
+              <foreground android:drawable="@drawable/ic_launcher_fg" />
+              <monochrome android:drawable="@drawable/ic_launcher_fg" />
+          </adaptive-icon>
+          EOF
+
+          # 4.4. Cấu hình Accessibility Service
+          cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeViewFocused"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
+              android:canRetrieveWindowContent="true"
+              android:description="@string/acc_desc"
+              android:notificationTimeout="120"
+              android:settingsActivity="com.daklak.eakiet.lichvannien.MainActivity" />
+          EOF
+
+          cat << 'EOF' > app/src/main/res/values/strings.xml
+          <resources>
+              <string name="app_name">Lịch Vạn Niên</string>
+              <string name="acc_desc">Hiển thị Lịch Song Tròn Âm Dương và Bảng Giá Động Ea Kiết - Đắk Lắk trên Projectivy Launcher, tự động ẩn khi mở Cài đặt hoặc ứng dụng khác.</string>
+          </resources>
+          EOF
+
+          # 4.5. Tạo GradientTextView.kt (Có cache LinearGradient giúp mượt 60fps, không tốn RAM/GC)
+          cat << 'EOF' > app/src/main/java/com/daklak/eakiet/lichvannien/GradientTextView.kt
+          package com.daklak.eakiet.lichvannien
+
+          import android.content.Context
+          import android.graphics.Canvas
+          import android.graphics.LinearGradient
+          import android.graphics.Shader
+          import android.widget.TextView
+          import kotlin.math.max
+          import kotlin.math.min
+
+          class GradientTextView(context: Context) : TextView(context) {
+
+              private var gradColors: IntArray? = null
+              private var gradPositions: FloatArray? = null
+              private var cachedShader: LinearGradient? = null
+              private var lastStartX = -1f
+              private var lastSpan = -1f
+
+              fun setLeftToRightGradient(colors: IntArray?, positions: FloatArray? = floatArrayOf(0f, 0.48f, 1f)) {
+                  gradColors = colors
+                  gradPositions = positions
+                  cachedShader = null
+                  lastStartX = -1f
+                  lastSpan = -1f
+                  if (colors == null) {
+                      paint.shader = null
+                  }
+                  invalidate()
+              }
+
+              override fun onDraw(canvas: Canvas) {
+                  val colors = gradColors
+                  if (colors != null && colors.size >= 2 && width > 0) {
+                      val layoutObj = layout
+                      var startX = paddingLeft.toFloat()
+                      var endX = (width - paddingRight).toFloat()
+
+                      if (layoutObj != null && layoutObj.lineCount > 0) {
+                          var minLeft = Float.MAX_VALUE
+                          var maxRight = 0f
+                          for (i in 0 until layoutObj.lineCount) {
+                              minLeft = min(minLeft, layoutObj.getLineLeft(i))
+                              maxRight = max(maxRight, layoutObj.getLineRight(i))
+                          }
+                          if (maxRight > minLeft) {
+                              startX = paddingLeft + minLeft
+                              endX = paddingLeft + maxRight
+                          }
+                      }
+
+                      val span = (endX - startX).coerceAtLeast(20f)
+                      if (cachedShader == null || startX != lastStartX || span != lastSpan) {
+                          cachedShader = LinearGradient(
+                              startX, 0f,
+                              startX + span, 0f,
+                              colors,
+                              gradPositions,
+                              Shader.TileMode.CLAMP
+                          )
+                          lastStartX = startX
+                          lastSpan = span
+                      }
+                      paint.shader = cachedShader
+                  } else {
+                      paint.shader = null
+                  }
+                  super.onDraw(canvas)
+              }
+          }
+          EOF
+
+          # 4.6. Tạo DualMedallionCircleView.kt (Song Tròn gọn chia đối xứng Ngày | Tháng)
+          cat << 'EOF' > app/src/main/java/com/daklak/eakiet/lichvannien/DualMedallionCircleView.kt
+          package com.daklak.eakiet.lichvannien
+
+          import android.content.Context
+          import android.graphics.Canvas
+          import android.graphics.Color
+          import android.graphics.DashPathEffect
+          import android.graphics.LinearGradient
+          import android.graphics.Paint
+          import android.graphics.Shader
+          import android.graphics.Typeface
+          import android.util.TypedValue
+          import android.view.View
+
+          data class CirclePalette(
+              val bgColors: IntArray,
+              val rimColor: Int,
+              val textColor: Int,
+              val subLabelColor: Int,
+              val dividerColor: Int,
+              val badgeBgColor: Int,
+              val badgeBorderColor: Int
+          )
+
+          class DualMedallionCircleView(context: Context) : View(context) {
+
+              var dayValueText: String = "28"
+              var monthValueText: String = "11"
+              var badgeEmoji: String = "☀️"
+              var isSpecialHighlight: Boolean = false
+              var isCompactSize: Boolean = true
+                  set(value) {
+                      if (field != value) {
+                          field = value
+                          cachedBgShader = null
+                          requestLayout()
+                          invalidate()
+                      }
+                  }
+
+              var palette: CirclePalette = SOLAR_PALETTE
+                  set(value) {
+                      field = value
+                      cachedBgShader = null
+                      invalidate()
+                  }
+
+              private var cachedBgShader: LinearGradient? = null
+              private var lastShaderRadius = -1f
+
+              private val outerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val patternRingPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val innerRingPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val numPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val badgeBgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val badgeBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+              companion object {
+                  val SOLAR_PALETTE = CirclePalette(
+                      bgColors = intArrayOf(
+                          Color.parseColor("#FFE600"),
+                          Color.parseColor("#FACC15"),
+                          Color.parseColor("#D97706")
+                      ),
+                      rimColor = Color.parseColor("#F59E0B"),
+                      textColor = Color.parseColor("#3B2810"),
+                      subLabelColor = Color.parseColor("#5C3A12"),
+                      dividerColor = Color.argb(125, 59, 40, 16),
+                      badgeBgColor = Color.parseColor("#FFFBEB"),
+                      badgeBorderColor = Color.parseColor("#D97706")
+                  )
+
+                  val LUNAR_PALETTES = arrayOf(
+                      CirclePalette(
+                          bgColors = intArrayOf(
+                              Color.parseColor("#E0F2FE"),
+                              Color.parseColor("#38BDF8"),
+                              Color.parseColor("#0284C7")
+                          ),
+                          rimColor = Color.parseColor("#38BDF8"),
+                          textColor = Color.parseColor("#082F49"),
+                          subLabelColor = Color.parseColor("#0C4A6E"),
+                          dividerColor = Color.argb(120, 8, 47, 73),
+                          badgeBgColor = Color.parseColor("#F0F9FF"),
+                          badgeBorderColor = Color.parseColor("#0284C7")
+                      ),
+                      CirclePalette(
+                          bgColors = intArrayOf(
+                              Color.parseColor("#D1FAE5"),
+                              Color.parseColor("#34D399"),
+                              Color.parseColor("#059669")
+                          ),
+                          rimColor = Color.parseColor("#34D399"),
+                          textColor = Color.parseColor("#064E3B"),
+                          subLabelColor = Color.parseColor("#065F46"),
+                          dividerColor = Color.argb(120, 6, 78, 59),
+                          badgeBgColor = Color.parseColor("#ECFDF5"),
+                          badgeBorderColor = Color.parseColor("#059669")
+                      ),
+                      CirclePalette(
+                          bgColors = intArrayOf(
+                              Color.parseColor("#FCA5A5"),
+                              Color.parseColor("#EF4444"),
+                              Color.parseColor("#991B1B")
+                          ),
+                          rimColor = Color.parseColor("#F87171"),
+                          textColor = Color.parseColor("#FEF9C3"),
+                          subLabelColor = Color.parseColor("#FEF08A"),
+                          dividerColor = Color.argb(135, 254, 249, 195),
+                          badgeBgColor = Color.parseColor("#450A0A"),
+                          badgeBorderColor = Color.parseColor("#F59E0B")
+                      )
+                  )
+              }
+
+              private fun dp(v: Float): Float =
+                  TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics)
+
+              override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                  val w = if (isCompactSize) dp(104f).toInt() else dp(116f).toInt()
+                  val h = if (isCompactSize) dp(112f).toInt() else dp(124f).toInt()
+                  setMeasuredDimension(w, h)
+              }
+
+              override fun onDraw(canvas: Canvas) {
+                  super.onDraw(canvas)
+                  val s = if (isCompactSize) 0.90f else 1.00f
+                  val cx = width / 2f
+                  val mainRadius = dp(52f * s)
+                  val cy = mainRadius + dp(3f * s)
+
+                  if (cachedBgShader == null || lastShaderRadius != mainRadius) {
+                      cachedBgShader = LinearGradient(
+                          cx - mainRadius, cy, cx + mainRadius, cy,
+                          palette.bgColors,
+                          floatArrayOf(0f, 0.52f, 1f),
+                          Shader.TileMode.CLAMP
+                      )
+                      lastShaderRadius = mainRadius
+                  }
+                  outerPaint.shader = cachedBgShader
+                  canvas.drawCircle(cx, cy, mainRadius, outerPaint)
+
+                  rimPaint.style = Paint.Style.STROKE
+                  rimPaint.strokeWidth = dp(if (isSpecialHighlight) 2.8f * s else 1.5f * s)
+                  rimPaint.color = if (isSpecialHighlight) Color.parseColor("#FFE600") else palette.rimColor
+                  canvas.drawCircle(cx, cy, mainRadius - dp(1f), rimPaint)
+
+                  innerRingPaint.style = Paint.Style.STROKE
+                  innerRingPaint.strokeWidth = dp(1.2f * s)
+                  innerRingPaint.color = Color.argb(195, 255, 255, 255)
+                  canvas.drawCircle(cx, cy, dp(46.5f * s), innerRingPaint)
+                  canvas.drawCircle(cx, cy, dp(39.5f * s), innerRingPaint)
+
+                  patternRingPaint.style = Paint.Style.STROKE
+                  patternRingPaint.strokeWidth = dp(4.2f * s)
+                  patternRingPaint.color = Color.argb(145, 255, 255, 255)
+                  patternRingPaint.pathEffect = DashPathEffect(floatArrayOf(dp(4.2f * s), dp(3.0f * s)), 0f)
+                  canvas.drawCircle(cx, cy, dp(43.0f * s), patternRingPaint)
+
+                  dividerPaint.color = palette.dividerColor
+                  dividerPaint.strokeWidth = dp(1.2f * s)
+                  canvas.drawLine(cx, cy - dp(19f * s), cx, cy + dp(17f * s), dividerPaint)
+
+                  val leftCenterX = cx - dp(17.5f * s)
+                  val rightCenterX = cx + dp(17.5f * s)
+
+                  labelPaint.color = palette.subLabelColor
+                  labelPaint.textSize = dp(9.0f * s)
+                  labelPaint.typeface = Typeface.DEFAULT_BOLD
+                  labelPaint.textAlign = Paint.Align.CENTER
+                  canvas.drawText("Ngày", leftCenterX, cy - dp(9.5f * s), labelPaint)
+                  canvas.drawText("Tháng", rightCenterX, cy - dp(9.5f * s), labelPaint)
+
+                  numPaint.color = palette.textColor
+                  numPaint.textSize = dp(22.5f * s)
+                  numPaint.typeface = Typeface.DEFAULT_BOLD
+                  numPaint.textAlign = Paint.Align.CENTER
+                  canvas.drawText(dayValueText, leftCenterX, cy + dp(14.5f * s), numPaint)
+                  canvas.drawText(monthValueText, rightCenterX, cy + dp(14.5f * s), numPaint)
+
+                  val badgeCy = cy + mainRadius - dp(3f * s)
+                  val badgeR = dp(13.5f * s)
+
+                  badgeBgPaint.color = palette.badgeBgColor
+                  canvas.drawCircle(cx, badgeCy, badgeR, badgeBgPaint)
+
+                  badgeBorderPaint.style = Paint.Style.STROKE
+                  badgeBorderPaint.strokeWidth = dp(1.6f * s)
+                  badgeBorderPaint.color = if (isSpecialHighlight) Color.parseColor("#FFE600") else palette.badgeBorderColor
+                  canvas.drawCircle(cx, badgeCy, badgeR, badgeBorderPaint)
+
+                  emojiPaint.textSize = dp(14.5f * s)
+                  emojiPaint.textAlign = Paint.Align.CENTER
+                  canvas.drawText(badgeEmoji, cx, badgeCy + dp(5f * s), emojiPaint)
+              }
+          }
+          EOF
+
+          # 4.7. Tạo VietCalendarEngine.kt
+          cat << 'EOF' > app/src/main/java/com/daklak/eakiet/lichvannien/VietCalendarEngine.kt
+          package com.daklak.eakiet.lichvannien
+
+          import java.util.Calendar
+          import java.util.Locale
+          import java.util.TimeZone
+          import kotlin.math.floor
+          import kotlin.math.sin
+
+          data class CalendarDayInfo(
+              val solarDay: Int,
+              val solarMonth: Int,
+              val solarYear: Int,
+              val weekOfYear: Int,
+              val dayOfWeekStr: String,
+              val lunarDay: Int,
+              val lunarMonth: Int,
+              val lunarYear: Int,
+              val currentHourCanChi: String,
+              val isCurrentHourHoangDao: Boolean,
+              val dayCanChi: String,
+              val monthCanChi: String,
+              val yearCanChi: String,
+              val zodiacEmoji: String,
+              val isHoangDaoDay: Boolean,
+              val gioHoangDaoShort: String,
+              val menhNgayNapAm: String,
+              val quoteText: String,
+              val quoteAuthor: String,
+              val lunarSpecialReminder: String?,
+              val isRamOrMung1Today: Boolean
+          )
+
+          object VietCalendarEngine {
+
+              private val CAN = arrayOf("Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý")
+              private val CHI = arrayOf("Tí", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi")
+              private val ZODIAC_EMOJI = arrayOf("🐀", "🐃", "🐅", "🐈", "🐉", "🐍", "🐎", "🐐", "🐒", "🐓", "🐕", "🐖")
+              private val HOUR_RANGES = arrayOf(
+                  "23-1h", "1-3h", "3-5h", "5-7h", "7-9h", "9-11h",
+                  "11-13h", "13-15h", "15-17h", "17-19h", "19-21h", "21-23h"
+              )
+
+              private val NAP_AM = arrayOf(
+                  "Hải trung kim (Vàng trong biển)",
+                  "Lư trung hỏa (Lửa trong lò)",
+                  "Đại lâm mộc (Gỗ rừng già)",
+                  "Lộ bàng thổ (Đất ven đường)",
+                  "Kiếm phong kim (Vàng mũi kiếm)",
+                  "Sơn đầu hỏa (Lửa trên núi)",
+                  "Giản hạ thủy (Nước dưới suối)",
+                  "Thành đầu thổ (Đất trên thành)",
+                  "Bạch lạp kim (Vàng chân đèn)",
+                  "Dương liễu mộc (Gỗ cây dương)",
+                  "Tuyền trung thủy (Nước trong suối)",
+                  "Ốc thượng thổ (Đất nóc nhà)",
+                  "Tích lịch hỏa (Lửa sấm sét)",
+                  "Tùng bách mộc (Gỗ tùng bách)",
+                  "Trường lưu thủy (Nước chảy mạnh)",
+                  "Sa trung kim (Vàng trong cát)",
+                  "Sơn hạ hỏa (Lửa dưới núi)",
+                  "Bình địa mộc (Gỗ đồng bằng)",
+                  "Bích thượng thổ (Đất trên vách)",
+                  "Kim bạch kim (Vàng pha bạc)",
+                  "Phú đăng hỏa (Lửa đèn to)",
+                  "Thiên hà thủy (Nước trên trời)",
+                  "Đại dịch thổ (Đất khu lớn)",
+                  "Thoa xuyến kim (Vàng trang sức)",
+                  "Tang đố mộc (Gỗ cây dâu)",
+                  "Đại khê thủy (Nước khe lớn)",
+                  "Sa trung thổ (Đất pha cát)",
+                  "Thiên thượng hỏa (Lửa trên trời)",
+                  "Thạch lựu mộc (Gỗ cây lựu đá)",
+                  "Đại hải thủy (Nước biển lớn)"
+              )
+
+              private val QUOTES = arrayOf(
+                  "Hạnh phúc không phải là đích đến, mà là hành trình chúng ta đang đi mỗi ngày." to "Danh ngôn sống",
+                  "Thành công là tổng hợp của những nỗ lực nhỏ bé được lặp lại ngày qua ngày." to "Robert Collier",
+                  "Sự giản dị là đỉnh cao cuối cùng của mọi sự tinh tế." to "Leonardo da Vinci",
+                  "Mỗi buổi sáng thức dậy là một trang giấy mới để viết nên điều tốt đẹp." to "Khuyết danh",
+                  "Có chí thì nên, kiên nhẫn bền bỉ ắt gặt hái quả ngọt." to "Tục ngữ Việt Nam",
+                  "Thời gian là tài sản quý giá nhất mà con người có thể trao tặng cho nhau." to "Theophrastus",
+                  "Tâm an thì vạn sự an, lòng rộng thì phúc lộc tự tìm đến." to "Triết lý phương Đông",
+                  "Trí tuệ rộng rãi và tâm hồn năng động chính là cội nguồn của thành công." to "D. Đi-đơ-rô",
+                  "Gieo hạt cần cù hôm nay để mùa sau gặt trọn niềm vui." to "Ngạn ngữ nhà nông",
+                  "Bình tĩnh trước giông bão mới thấy rõ ánh mặt trời phía trước." to "Danh ngôn sống",
+                  "Gia đình hòa thuận là nền móng vững chắc nhất của sự thịnh vượng." to "Cổ nhân",
+                  "Biết đủ là giàu, biết dừng là khôn, biết cho đi là hạnh phúc." to "Lão Tử"
+              )
+
+              fun currentClockText(): String {
+                  val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"))
+                  return String.format(
+                      Locale.US,
+                      "%02d:%02d:%02d",
+                      cal.get(Calendar.HOUR_OF_DAY),
+                      cal.get(Calendar.MINUTE),
+                      cal.get(Calendar.SECOND)
+                  )
+              }
+
+              fun currentHourKey(dayOffset: Int): String {
+                  val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"))
+                  if (dayOffset != 0) cal.add(Calendar.DAY_OF_YEAR, dayOffset)
+                  return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}-${cal.get(Calendar.HOUR_OF_DAY)}-$dayOffset"
+              }
+
+              fun compute(dayOffset: Int = 0): CalendarDayInfo {
+                  val tz = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
+                  val cal = Calendar.getInstance(tz)
+                  if (dayOffset != 0) {
+                      cal.add(Calendar.DAY_OF_YEAR, dayOffset)
+                  }
+
+                  val dd = cal.get(Calendar.DAY_OF_MONTH)
+                  val mm = cal.get(Calendar.MONTH) + 1
+                  val yy = cal.get(Calendar.YEAR)
+                  val hour = cal.get(Calendar.HOUR_OF_DAY)
+                  val week = cal.get(Calendar.WEEK_OF_YEAR)
+
+                  val dowStr = when (cal.get(Calendar.DAY_OF_WEEK)) {
+                      Calendar.MONDAY -> "THỨ HAI"
+                      Calendar.TUESDAY -> "THỨ BA"
+                      Calendar.WEDNESDAY -> "THỨ TƯ"
+                      Calendar.THURSDAY -> "THỨ NĂM"
+                      Calendar.FRIDAY -> "THỨ SÁU"
+                      Calendar.SATURDAY -> "THỨ BẢY"
+                      else -> "CHỦ NHẬT"
+                  }
+
+                  val jd = jdFromDate(dd, mm, yy)
+                  val (lunarD, lunarM, lunarY, _) = convertSolar2Lunar(dd, mm, yy, 7.0)
+
+                  val calTomorrow = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }
+                  val (tomLunarD, tomLunarM, _, _) = convertSolar2Lunar(
+                      calTomorrow.get(Calendar.DAY_OF_MONTH),
+                      calTomorrow.get(Calendar.MONTH) + 1,
+                      calTomorrow.get(Calendar.YEAR),
+                      7.0
+                  )
+
+                  var lunarSpecialReminder: String? = null
+                  var isRamOrMung1Today = false
+
+                  when {
+                      lunarD == 1 -> {
+                          lunarSpecialReminder = "🌕 HÔM NAY MÙNG 1 THÁNG $lunarM ÂM"
+                          isRamOrMung1Today = true
+                      }
+                      lunarD == 15 -> {
+                          lunarSpecialReminder = "🌕 HÔM NAY NGÀY RẰM THÁNG $lunarM"
+                          isRamOrMung1Today = true
+                      }
+                      tomLunarD == 1 -> {
+                          lunarSpecialReminder = "🌘 NGÀY MAI MÙNG 1 THÁNG $tomLunarM ÂM"
+                      }
+                      lunarD == 14 -> {
+                          lunarSpecialReminder = "🌖 NGÀY MAI LÀ RẰM THÁNG $lunarM"
+                      }
+                  }
+
+                  val dayCanIdx = (jd + 9) % 10
+                  val dayChiIdx = (jd + 1) % 12
+                  val dayCanChi = "${CAN[dayCanIdx]} ${CHI[dayChiIdx]}"
+
+                  val yearCanIdx = (lunarY + 6) % 10
+                  val yearChiIdx = (lunarY + 8) % 12
+                  val yearCanChi = "${CAN[yearCanIdx]} ${CHI[yearChiIdx]}"
+
+                  val monthCanIdx = (lunarY * 12 + lunarM + 3) % 10
+                  val monthChiIdx = (lunarM + 1) % 12
+                  val monthCanChi = "${CAN[monthCanIdx]} ${CHI[monthChiIdx]}"
+
+                  val startRatCanIdx = (dayCanIdx % 5) * 2
+                  val curHourChiIdx = ((hour + 1) / 2) % 12
+                  val curHourCanIdx = (startRatCanIdx + curHourChiIdx) % 10
+                  val currentHourCanChi = "${CAN[curHourCanIdx]} ${CHI[curHourChiIdx]}"
+
+                  val hoangDaoHourIndices = getHoangDaoHourIndices(dayChiIdx)
+                  val isCurrentHourHoangDao = hoangDaoHourIndices.contains(curHourChiIdx)
+                  val gioHoangDaoShort = hoangDaoHourIndices.joinToString(", ") { hChi ->
+                      "${CHI[hChi]} (${HOUR_RANGES[hChi]})"
+                  }
+
+                  val isHoangDaoDay = checkIsHoangDaoDay(lunarM, dayChiIdx)
+                  val sexagenaryIdx = getSexagenaryIndex(dayCanIdx, dayChiIdx)
+                  val menhNgayNapAm = NAP_AM[(sexagenaryIdx / 2) % NAP_AM.size]
+                  val quotePair = QUOTES[jd % QUOTES.size]
+
+                  return CalendarDayInfo(
+                      solarDay = dd,
+                      solarMonth = mm,
+                      solarYear = yy,
+                      weekOfYear = week,
+                      dayOfWeekStr = dowStr,
+                      lunarDay = lunarD,
+                      lunarMonth = lunarM,
+                      lunarYear = lunarY,
+                      currentHourCanChi = currentHourCanChi,
+                      isCurrentHourHoangDao = isCurrentHourHoangDao,
+                      dayCanChi = dayCanChi,
+                      monthCanChi = monthCanChi,
+                      yearCanChi = yearCanChi,
+                      zodiacEmoji = ZODIAC_EMOJI[dayChiIdx],
+                      isHoangDaoDay = isHoangDaoDay,
+                      gioHoangDaoShort = gioHoangDaoShort,
+                      menhNgayNapAm = menhNgayNapAm,
+                      quoteText = quotePair.first,
+                      quoteAuthor = quotePair.second,
+                      lunarSpecialReminder = lunarSpecialReminder,
+                      isRamOrMung1Today = isRamOrMung1Today
+                  )
+              }
+
+              private fun getSexagenaryIndex(canIdx: Int, chiIdx: Int): Int {
+                  for (i in 0 until 60) {
+                      if (i % 10 == canIdx && i % 12 == chiIdx) return i
+                  }
+                  return 0
+              }
+
+              private fun getHoangDaoHourIndices(dayChiIdx: Int): IntArray {
+                  return when (dayChiIdx % 6) {
+                      0 -> intArrayOf(0, 1, 3, 6, 8, 9)
+                      1 -> intArrayOf(2, 3, 5, 8, 10, 11)
+                      2 -> intArrayOf(0, 1, 4, 5, 7, 10)
+                      3 -> intArrayOf(0, 2, 3, 6, 7, 9)
+                      4 -> intArrayOf(2, 4, 5, 8, 9, 11)
+                      else -> intArrayOf(1, 4, 6, 7, 10, 11)
+                  }
+              }
+
+              private fun checkIsHoangDaoDay(lunarMonth: Int, dayChiIdx: Int): Boolean {
+                  val startChi = when (lunarMonth) {
+                      1, 7 -> 0
+                      2, 8 -> 2
+                      3, 9 -> 4
+                      4, 10 -> 6
+                      5, 11 -> 8
+                      else -> 10
+                  }
+                  val offset = (dayChiIdx - startChi + 12) % 12
+                  return offset == 0 || offset == 1 || offset == 4 || offset == 5 || offset == 7 || offset == 10
+              }
+
+              private fun jdFromDate(dd: Int, mm: Int, yy: Int): Int {
+                  val a = (14 - mm) / 12
+                  val y = yy + 4800 - a
+                  val m = mm + 12 * a - 3
+                  var jd = dd + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
+                  if (jd < 2299161) {
+                      jd = dd + (153 * m + 2) / 5 + 365 * y + y / 4 - 32083
+                  }
+                  return jd
+              }
+
+              private fun getNewMoonDay(k: Int, timeZone: Double): Int {
+                  val t = k / 1236.85
+                  val t2 = t * t
+                  val t3 = t2 * t
+                  val dr = Math.PI / 180.0
+                  var jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * t2 - 0.000000155 * t3
+                  jd1 += 0.00033 * sin((166.56 + 132.87 * t - 0.009173 * t2) * dr)
+                  val m = 359.2242 + 29.10535608 * k - 0.0000333 * t2 - 0.00000347 * t3
+                  val mpr = 306.0253 + 385.81691806 * k + 0.0107306 * t2 + 0.00001236 * t3
+                  val f = 21.2964 + 390.67050646 * k - 0.0016528 * t2 - 0.00000239 * t3
+                  var c1 = (0.1734 - 0.000393 * t) * sin(m * dr) + 0.0021 * sin(2 * dr * m)
+                  c1 = c1 - 0.4068 * sin(mpr * dr) + 0.0161 * sin(dr * 2 * mpr)
+                  c1 -= 0.0004 * sin(dr * 3 * mpr)
+                  c1 = c1 + 0.0104 * sin(dr * 2 * f) - 0.0051 * sin(dr * (m + mpr))
+                  c1 = c1 - 0.0074 * sin(dr * (m - mpr)) + 0.0004 * sin(dr * (2 * f + m))
+                  c1 = c1 - 0.0004 * sin(dr * (2 * f - m)) - 0.0006 * sin(dr * (2 * f + mpr))
+                  c1 += 0.0010 * sin(dr * (2 * f - mpr)) + 0.0005 * sin(dr * (2 * mpr + m))
+                  val deltat = if (t < -11) {
+                      0.001 + 0.000839 * t + 0.0002261 * t2 - 0.00000845 * t3 - 0.000000081 * t * t3
+                  } else {
+                      -0.000278 + 0.000265 * t + 0.000262 * t2
+                  }
+                  val jdNew = jd1 + c1 - deltat
+                  return floor(jdNew + 0.5 + timeZone / 24.0).toInt()
+              }
+
+              private fun getSunLongitude(jdn: Int, timeZone: Double): Int {
+                  val t = (jdn - 2451545.5 - timeZone / 24.0) / 36525.0
+                  val t2 = t * t
+                  val dr = Math.PI / 180.0
+                  val m = 357.52910 + 35999.05030 * t - 0.0001559 * t2 - 0.00000048 * t * t2
+                  val l0 = 280.46645 + 36000.76983 * t + 0.0003032 * t2
+                  var dl = (1.914600 - 0.004817 * t - 0.000014 * t2) * sin(dr * m)
+                  dl += (0.019993 - 0.000101 * t) * sin(dr * 2 * m) + 0.000290 * sin(dr * 3 * m)
+                  var l = l0 + dl
+                  l *= dr
+                  l -= Math.PI * 2 * floor(l / (Math.PI * 2))
+                  return floor(l / Math.PI * 6.0).toInt()
+              }
+
+              private fun getLunarMonth11(yy: Int, timeZone: Double): Int {
+                  val off = jdFromDate(31, 12, yy) - 2415021
+                  val k = floor(off / 29.530588853).toInt()
+                  var nm = getNewMoonDay(k, timeZone)
+                  val sunLong = getSunLongitude(nm, timeZone)
+                  if (sunLong >= 9) {
+                      nm = getNewMoonDay(k - 1, timeZone)
+                  }
+                  return nm
+              }
+
+              private fun getLeapMonthOffset(a11: Int, timeZone: Double): Int {
+                  val k = floor((a11 - 2415021.076998695) / 29.530588853 + 0.5).toInt()
+                  var last: Int
+                  var i = 1
+                  var arc = getSunLongitude(getNewMoonDay(k + i, timeZone), timeZone)
+                  do {
+                      last = arc
+                      i++
+                      arc = getSunLongitude(getNewMoonDay(k + i, timeZone), timeZone)
+                  } while (arc != last && i < 14)
+                  return i - 1
+              }
+
+              private fun convertSolar2Lunar(dd: Int, mm: Int, yy: Int, timeZone: Double): IntArray {
+                  val dayNumber = jdFromDate(dd, mm, yy)
+                  val k = floor((dayNumber - 2415021.076998695) / 29.530588853).toInt()
+                  var monthStart = getNewMoonDay(k + 1, timeZone)
+                  if (monthStart > dayNumber) {
+                      monthStart = getNewMoonDay(k, timeZone)
+                  }
+                  var a11 = getLunarMonth11(yy, timeZone)
+                  var b11 = a11
+                  var lunarYear: Int
+                  if (a11 >= monthStart) {
+                      lunarYear = yy
+                      a11 = getLunarMonth11(yy - 1, timeZone)
+                  } else {
+                      lunarYear = yy + 1
+                      b11 = getLunarMonth11(yy + 1, timeZone)
+                  }
+                  val lunarDay = dayNumber - monthStart + 1
+                  val diff = ((monthStart - a11) / 29).toInt()
+                  var lunarLeap = 0
+                  var lunarMonth = diff + 11
+                  if (b11 - a11 > 365) {
+                      val leapMonthDiff = getLeapMonthOffset(a11, timeZone)
+                      if (diff >= leapMonthDiff) {
+                          lunarMonth = diff + 10
+                          if (diff == leapMonthDiff) {
+                              lunarLeap = 1
+                          }
+                      }
+                  }
+                  if (lunarMonth > 12) {
+                      lunarMonth -= 12
+                  }
+                  if (lunarMonth >= 11 && diff < 4) {
+                      lunarYear -= 1
+                  }
+                  return intArrayOf(lunarDay, lunarMonth, lunarYear, lunarLeap)
+              }
+          }
+          EOF
+
+          # 4.8. Tạo PriceApiClient.kt (Server-Driven UI + Smart Merge Cache + Tự đổi link dự phòng + Lập lịch từ xa)
+          cat << 'EOF' > app/src/main/java/com/daklak/eakiet/lichvannien/PriceApiClient.kt
+          package com.daklak.eakiet.lichvannien
+
+          import android.content.Context
+          import org.json.JSONArray
+          import org.json.JSONObject
+          import java.io.BufferedReader
+          import java.io.InputStreamReader
+          import java.net.HttpURLConnection
+          import java.net.URL
+          import java.util.Calendar
+          import java.util.TimeZone
+
+          data class RemoteConfig(
+              val activeFromHour: Int = 4,
+              val activeToHour: Int = 22,
+              val tickerSec: Int = 8,
+              val topExtra: String = "",
+              val quote: String = "",
+              val nextApiUrl: String = ""
+          ) {
+              fun toJson(): JSONObject = JSONObject().apply {
+                  put("activeFromHour", activeFromHour)
+                  put("activeToHour", activeToHour)
+                  put("tickerSec", tickerSec)
+                  put("topExtra", topExtra)
+                  put("quote", quote)
+                  put("nextApiUrl", nextApiUrl)
+              }
+          }
+
+          data class DynamicRow(
+              val label: String,
+              val valText: String,
+              val badge: String = "",
+              val style: String = "none",
+              val muted: Boolean = false
+          ) {
+              fun toJson(): JSONObject = JSONObject().apply {
+                  put("label", label)
+                  put("val", valText)
+                  put("badge", badge)
+                  put("style", style)
+                  put("muted", muted)
+              }
+          }
+
+          data class DynamicColumn(
+              val title: String,
+              val items: List<DynamicRow>
+          ) {
+              fun toJson(): JSONObject = JSONObject().apply {
+                  put("title", title)
+                  val arr = JSONArray()
+                  for (it in items) arr.put(it.toJson())
+                  put("items", arr)
+              }
+          }
+
+          data class DynamicTicker(
+              val text: String,
+              val badge: String = "",
+              val style: String = "none"
+          ) {
+              fun toJson(): JSONObject = JSONObject().apply {
+                  put("text", text)
+                  put("badge", badge)
+                  put("style", style)
+              }
+          }
+
+          data class DynamicBoardData(
+              val config: RemoteConfig,
+              val col1: DynamicColumn,
+              val col2: DynamicColumn,
+              val tickers: List<DynamicTicker>
+          ) {
+              fun hasAnyValidPrice(): Boolean {
+                  return col1.items.any { it.valText.isNotBlank() && it.valText != "--" } ||
+                          col2.items.any { !it.muted && it.valText.isNotBlank() && it.valText != "--" }
+              }
+
+              fun toJson(): JSONObject = JSONObject().apply {
+                  put("config", config.toJson())
+                  put("col1", col1.toJson())
+                  put("col2", col2.toJson())
+                  val tArr = JSONArray()
+                  for (t in tickers) tArr.put(t.toJson())
+                  put("tickers", tArr)
+              }
+
+              companion object {
+                  fun defaultPlaceholder(): DynamicBoardData = DynamicBoardData(
+                      config = RemoteConfig(),
+                      col1 = DynamicColumn(
+                          title = "NÔNG SẢN ĐẮK LẮK (VNĐ/KG)",
+                          items = listOf(
+                              DynamicRow("☕ Giá thị trường Đắk Lắk", "--"),
+                              DynamicRow("📈 Giá thực tế (Sàn)", "--", "➖ Đi ngang", "neutral"),
+                              DynamicRow("🌿 Hồ tiêu Đắk Lắk", "--"),
+                              DynamicRow("🍈 Sầu riêng Đắk Lắk", "--"),
+                              DynamicRow("🌰 Hạt điều", "--")
+                          )
+                      ),
+                      col2 = DynamicColumn(
+                          title = "VÀNG & XĂNG DẦU (VÙNG 2)",
+                          items = listOf(
+                              DynamicRow("🪙 Vàng SJC:", "--"),
+                              DynamicRow("⛽ RON 95-III:", "--"),
+                              DynamicRow("⛽ E5 RON 92:", "--"),
+                              DynamicRow("🛢️ Dầu DO 0.05S:", "--"),
+                              DynamicRow("🕒 Cập nhật:", "--:--", muted = true)
+                          )
+                      ),
+                      tickers = listOf(
+                          DynamicTicker("☕ Đang tải dữ liệu thị trường Đắk Lắk...", "", "none")
+                      )
+                  )
+
+                  private fun cleanStr(obj: JSONObject?, key: String, def: String = ""): String {
+                      val v = obj?.optString(key, "")?.trim() ?: ""
+                      return if (v.isEmpty() || v.equals("null", ignoreCase = true)) def else v
+                  }
+
+                  /** Parse JSON SDUI (hỗ trợ cả JSON phẳng cũ và Smart Merge giữ lại số cache khi 1 nguồn lỗi) */
+                  fun fromJson(obj: JSONObject, oldData: DynamicBoardData = defaultPlaceholder()): DynamicBoardData {
+                      // Map lưu các giá trị hợp lệ cũ theo label để không bị ghi đè thành "--"
+                      val oldValMap = mutableMapOf<String, String>()
+                      for (r in oldData.col1.items + oldData.col2.items) {
+                          if (r.valText.isNotBlank() && r.valText != "--") {
+                              oldValMap[r.label] = r.valText
+                          }
+                      }
+
+                      // Tương thích ngược nếu nhận JSON phẳng cũ (không có col1/col2)
+                      if (!obj.has("col1") && obj.has("cfThiTruong")) {
+                          return fromLegacyFlatJson(obj, oldData, oldValMap)
+                      }
+
+                      val cfgObj = obj.optJSONObject("config")
+                      val fromH = (cfgObj?.optInt("activeFromHour", oldData.config.activeFromHour)
+                          ?: oldData.config.activeFromHour).coerceIn(0, 23)
+                      val toH = (cfgObj?.optInt("activeToHour", oldData.config.activeToHour)
+                          ?: oldData.config.activeToHour).coerceIn(fromH, 23)
+                      val tSec = (cfgObj?.optInt("tickerSec", oldData.config.tickerSec)
+                          ?: oldData.config.tickerSec).coerceIn(4, 60)
+
+                      val newTopExtra = cleanStr(cfgObj, "topExtra", oldData.config.topExtra)
+                      val newQuote = cleanStr(cfgObj, "quote", "")
+                      val nextUrl = cleanStr(cfgObj, "nextApiUrl", "")
+
+                      val parsedConfig = RemoteConfig(
+                          activeFromHour = fromH,
+                          activeToHour = toH,
+                          tickerSec = tSec,
+                          topExtra = newTopExtra,
+                          quote = newQuote,
+                          nextApiUrl = nextUrl
+                      )
+
+                      val col1 = parseColumn(obj.optJSONObject("col1"), oldData.col1, oldValMap)
+                      val col2 = parseColumn(obj.optJSONObject("col2"), oldData.col2, oldValMap)
+
+                      val tickersList = mutableListOf<DynamicTicker>()
+                      val tArr = obj.optJSONArray("tickers")
+                      if (tArr != null) {
+                          for (i in 0 until tArr.length()) {
+                              val item = tArr.opt(i)
+                              when (item) {
+                                  is JSONObject -> {
+                                      val txt = cleanStr(item, "text")
+                                      if (txt.isNotEmpty()) {
+                                          tickersList.add(
+                                              DynamicTicker(
+                                                  text = txt,
+                                                  badge = cleanStr(item, "badge"),
+                                                  style = cleanStr(item, "style", "none")
+                                              )
+                                          )
+                                      }
+                                  }
+                                  is String -> {
+                                      if (item.isNotBlank()) tickersList.add(DynamicTicker(item.trim()))
+                                  }
+                              }
+                          }
+                      }
+                      if (tickersList.isEmpty()) {
+                          // Tự sinh ticker từ col1 & col2 nếu server không gửi mảng tickers
+                          val firstRow = col1.items.firstOrNull()
+                          val secondRow = col1.items.getOrNull(1)
+                          if (firstRow != null) {
+                              val txt = if (secondRow != null) {
+                                  "${firstRow.label}: ${firstRow.valText}  •  ${secondRow.label}: ${secondRow.valText}"
+                              } else {
+                                  "${firstRow.label}: ${firstRow.valText}"
+                              }
+                              tickersList.add(DynamicTicker(txt, secondRow?.badge ?: firstRow.badge, secondRow?.style ?: firstRow.style))
+                          } else {
+                              tickersList.addAll(oldData.tickers)
+                          }
+                      }
+
+                      return DynamicBoardData(parsedConfig, col1, col2, tickersList)
+                  }
+
+                  private fun parseColumn(
+                      colObj: JSONObject?,
+                      fallbackCol: DynamicColumn,
+                      oldValMap: Map<String, String>
+                  ): DynamicColumn {
+                      if (colObj == null) return fallbackCol
+                      val title = cleanStr(colObj, "title", fallbackCol.title)
+                      val arr = colObj.optJSONArray("items") ?: return fallbackCol
+                      val rows = mutableListOf<DynamicRow>()
+
+                      for (i in 0 until arr.length()) {
+                          val rObj = arr.optJSONObject(i) ?: continue
+                          val label = cleanStr(rObj, "label")
+                          if (label.isEmpty()) continue
+
+                          val rawVal = cleanStr(rObj, "val", "--")
+                          val finalVal = if ((rawVal.isEmpty() || rawVal == "--") && oldValMap.containsKey(label)) {
+                              oldValMap[label] ?: "--"
+                          } else {
+                              rawVal.ifEmpty { "--" }
+                          }
+
+                          rows.add(
+                              DynamicRow(
+                                  label = label,
+                                  valText = finalVal,
+                                  badge = cleanStr(rObj, "badge"),
+                                  style = cleanStr(rObj, "style", "none"),
+                                  muted = rObj.optBoolean("muted", false)
+                              )
+                          )
+                      }
+                      return if (rows.isNotEmpty()) DynamicColumn(title, rows) else fallbackCol
+                  }
+
+                  private fun fromLegacyFlatJson(
+                      obj: JSONObject,
+                      oldData: DynamicBoardData,
+                      oldValMap: Map<String, String>
+                  ): DynamicBoardData {
+                      fun getVal(key: String, label: String): String {
+                          val v = cleanStr(obj, key, "--")
+                          return if (v == "--") oldValMap[label] ?: "--" else v
+                      }
+                      fun inferStyle(chg: String): String = when {
+                          chg.startsWith("+") -> "up"
+                          chg.startsWith("-") && chg != "-0" -> "down"
+                          chg.contains("Tăng", true) -> "trend_up"
+                          chg.contains("Giảm", true) -> "trend_down"
+                          chg.contains("Đi ngang", true) -> "neutral"
+                          else -> "none"
+                      }
+
+                      val cfTT = getVal("cfThiTruong", "☕ Giá thị trường Đắk Lắk")
+                      val cfTTChg = cleanStr(obj, "cfThiTruongChg", "0")
+                      val cfReal = getVal("cfThucTe", "📈 Giá thực tế (Sàn)")
+                      val cfTrend = cleanStr(obj, "cfXuHuong", "➖ Đi ngang")
+                      val pepper = getVal("pepper", "🌿 Hồ tiêu Đắk Lắk")
+                      val pepperChg = cleanStr(obj, "pepperChg", "0")
+                      val durian = getVal("durian", "🍈 Sầu riêng Đắk Lắk")
+                      val durianChg = cleanStr(obj, "durianChg", "0")
+                      val cashew = getVal("cashew", "🌰 Hạt điều")
+                      val cashewChg = cleanStr(obj, "cashewChg", "0")
+                      val gold = getVal("goldSjc", "🪙 Vàng SJC:")
+                      val ron95 = getVal("ron95", "⛽ RON 95-III:")
+                      val e5 = getVal("e5", "⛽ E5 RON 92:")
+                      val do005 = getVal("do005s", "🛢️ Dầu DO 0.05S:")
+                      val upd = getVal("updatedAt", "🕒 Cập nhật:")
+
+                      return DynamicBoardData(
+                          config = oldData.config,
+                          col1 = DynamicColumn(
+                              "NÔNG SẢN ĐẮK LẮK (VNĐ/KG)",
+                              listOf(
+                                  DynamicRow("☕ Giá thị trường Đắk Lắk", cfTT, cfTTChg, inferStyle(cfTTChg)),
+                                  DynamicRow("📈 Giá thực tế (Sàn)", cfReal, cfTrend, inferStyle(cfTrend)),
+                                  DynamicRow("🌿 Hồ tiêu Đắk Lắk", pepper, pepperChg, inferStyle(pepperChg)),
+                                  DynamicRow("🍈 Sầu riêng Đắk Lắk", durian, durianChg, inferStyle(durianChg)),
+                                  DynamicRow("🌰 Hạt điều", cashew, cashewChg, inferStyle(cashewChg))
+                              )
+                          ),
+                          col2 = DynamicColumn(
+                              "VÀNG & XĂNG DẦU (VÙNG 2)",
+                              listOf(
+                                  DynamicRow("🪙 Vàng SJC:", gold),
+                                  DynamicRow("⛽ RON 95-III:", ron95),
+                                  DynamicRow("⛽ E5 RON 92:", e5),
+                                  DynamicRow("🛢️ Dầu DO 0.05S:", do005),
+                                  DynamicRow("🕒 Cập nhật:", upd, muted = true)
+                              )
+                          ),
+                          tickers = listOf(
+                              DynamicTicker("☕ TT Đắk Lắk: $cfTT  •  Sàn: $cfReal", cfTrend, inferStyle(cfTrend)),
+                              DynamicTicker("🌿 Tiêu: $pepper  •  🍈 Sầu riêng: $durian  •  🌰 Điều: $cashew"),
+                              DynamicTicker("🪙 SJC: $gold  •  ⛽ 95: $ron95  •  🛢️ DO: $do005")
+                          )
+                      )
+                  }
+              }
+          }
+
+          data class FetchResult(
+              val data: DynamicBoardData,
+              val elapsedMs: Long,
+              val migratedToNewUrl: Boolean
+          )
+
+          object PriceApiClient {
+
+              // >>> 1. DÁN LINK API VERCEL CHÍNH CỦA BẠN VÀO ĐÂY <<<
+              const val DEFAULT_API_URL = "[DÁN_LINK_API_VERCEL_CỦA_BẠN_VÀO_ĐÂY]"
+
+              // >>> 2. (TÙY CHỌN) DÁN LINK RAW GITHUB bootstrap.json ĐỂ TỰ CỨU KHI ĐỔI SERVER <<<
+              const val BOOTSTRAP_CONFIG_URL = "[DÁN_LINK_RAW_GITHUB_BOOTSTRAP_JSON_NẾU_CÓ]"
+
+              private const val PREFS_NAME = "LichVanNien75Prefs"
+              private const val KEY_ACTIVE_API_URL = "sdui_active_api_url"
+              private const val KEY_CONSECUTIVE_FAILS = "sdui_fail_count"
+
+              private val VN_TZ: TimeZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
+
+              private fun isValidHttpUrl(url: String?): Boolean {
+                  val u = url?.trim() ?: return false
+                  return u.startsWith("http://") || u.startsWith("https://")
+              }
+
+              fun getActiveApiUrl(context: Context): String {
+                  val saved = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                      .getString(KEY_ACTIVE_API_URL, null)
+                  return if (isValidHttpUrl(saved)) saved!!.trim() else DEFAULT_API_URL.trim()
+              }
+
+              private fun saveActiveApiUrl(context: Context, newUrl: String) {
+                  context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                      .edit()
+                      .putString(KEY_ACTIVE_API_URL, newUrl.trim())
+                      .putInt(KEY_CONSECUTIVE_FAILS, 0)
+                      .apply()
+              }
+
+              fun isWithinActiveHours(config: RemoteConfig): Boolean {
+                  val cal = Calendar.getInstance(VN_TZ)
+                  val hour = cal.get(Calendar.HOUR_OF_DAY)
+                  val fromH = config.activeFromHour.coerceIn(0, 23)
+                  val toH = config.activeToHour.coerceIn(fromH, 23)
+                  return hour in fromH..toH
+              }
+
+              /** Tính chính xác thời gian chờ đến đầu giờ tiếp theo (:00:03) theo khung giờ config từ xa */
+              fun computeDelayUntilNextScheduledFetchMs(config: RemoteConfig): Long {
+                  val fromH = config.activeFromHour.coerceIn(0, 23)
+                  val toH = config.activeToHour.coerceIn(fromH, 23)
+
+                  val now = Calendar.getInstance(VN_TZ)
+                  val next = (now.clone() as Calendar).apply {
+                      set(Calendar.MINUTE, 0)
+                      set(Calendar.SECOND, 3)
+                      set(Calendar.MILLISECOND, 0)
+                  }
+
+                  val currentHour = now.get(Calendar.HOUR_OF_DAY)
+                  when {
+                      currentHour < fromH -> {
+                          next.set(Calendar.HOUR_OF_DAY, fromH)
+                      }
+                      currentHour in fromH until toH -> {
+                          next.set(Calendar.HOUR_OF_DAY, currentHour + 1)
+                      }
+                      else -> {
+                          next.add(Calendar.DAY_OF_YEAR, 1)
+                          next.set(Calendar.HOUR_OF_DAY, fromH)
+                      }
+                  }
+
+                  val diff = next.timeInMillis - now.timeInMillis
+                  return diff.coerceAtLeast(15_000L)
+              }
+
+              private fun httpGetJson(targetUrl: String): Pair<JSONObject, Long>? {
+                  if (!isValidHttpUrl(targetUrl)) return null
+                  var conn: HttpURLConnection? = null
+                  val startMs = System.currentTimeMillis()
+                  return try {
+                      val url = URL(targetUrl)
+                      conn = (url.openConnection() as HttpURLConnection).apply {
+                          requestMethod = "GET"
+                          connectTimeout = 5000
+                          readTimeout = 5000
+                          useCaches = false
+                          setRequestProperty("Accept", "application/json")
+                          setRequestProperty("User-Agent", "LichVanNienTV/13.0-SDUI (AndroidTV)")
+                      }
+
+                      if (conn.responseCode in 200..299) {
+                          val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
+                          val sb = StringBuilder()
+                          var line: String?
+                          while (reader.readLine().also { line = it } != null) {
+                              sb.append(line)
+                          }
+                          reader.close()
+                          val elapsed = System.currentTimeMillis() - startMs
+                          JSONObject(sb.toString()) to elapsed
+                      } else {
+                          null
+                      }
+                  } catch (_: Throwable) {
+                      null
+                  } finally {
+                      try { conn?.disconnect() } catch (_: Throwable) {}
+                  }
+              }
+
+              /** Đọc dữ liệu động kèm cơ chế tự chuyển domain qua nextApiUrl hoặc bootstrap.json dự phòng */
+              fun fetchBoardData(context: Context, currentCache: DynamicBoardData): FetchResult? {
+                  val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                  val currentUrl = getActiveApiUrl(context)
+
+                  val primary = httpGetJson(currentUrl)
+                  if (primary != null) {
+                      prefs.edit().putInt(KEY_CONSECUTIVE_FAILS, 0).apply()
+                      val parsed = DynamicBoardData.fromJson(primary.first, currentCache)
+
+                      // Lớp 1: Tự động chuyển hộ khẩu nếu server trả về config.nextApiUrl
+                      val nextUrl = parsed.config.nextApiUrl
+                      var migrated = false
+                      if (isValidHttpUrl(nextUrl) && nextUrl != currentUrl) {
+                          saveActiveApiUrl(context, nextUrl)
+                          migrated = true
+                      }
+                      return FetchResult(parsed, primary.second, migrated)
+                  }
+
+                  // Thất bại -> tăng bộ đếm; nếu lỗi >= 3 lần hoặc chưa cài URL chính thì gọi bootstrap.json
+                  val fails = prefs.getInt(KEY_CONSECUTIVE_FAILS, 0) + 1
+                  prefs.edit().putInt(KEY_CONSECUTIVE_FAILS, fails).apply()
+
+                  if ((fails >= 3 || !isValidHttpUrl(currentUrl)) && isValidHttpUrl(BOOTSTRAP_CONFIG_URL)) {
+                      val boot = httpGetJson(BOOTSTRAP_CONFIG_URL)
+                      val recoveredUrl = boot?.first?.optString("apiUrl", "")?.trim()
+                      if (isValidHttpUrl(recoveredUrl) && recoveredUrl != currentUrl) {
+                          saveActiveApiUrl(context, recoveredUrl!!)
+                          val retry = httpGetJson(recoveredUrl)
+                          if (retry != null) {
+                              val parsed = DynamicBoardData.fromJson(retry.first, currentCache)
+                              return FetchResult(parsed, retry.second, migratedToNewUrl = true)
+                          }
+                      }
+                  }
+                  return null
+              }
+          }
+          EOF
+
+          # 4.9. Tạo CalendarAccessibilityService.kt (Lịch Song Tròn + Dựng Bảng Giá Động SDUI + Menu Remote)
+          cat << 'EOF' > app/src/main/java/com/daklak/eakiet/lichvannien/CalendarAccessibilityService.kt
+          package com.daklak.eakiet.lichvannien
+
+          import android.accessibilityservice.AccessibilityService
+          import android.annotation.SuppressLint
+          import android.content.BroadcastReceiver
+          import android.content.Context
+          import android.content.Intent
+          import android.content.IntentFilter
+          import android.graphics.Color
+          import android.graphics.PixelFormat
+          import android.graphics.Rect
+          import android.graphics.Typeface
+          import android.graphics.drawable.GradientDrawable
+          import android.net.ConnectivityManager
+          import android.net.Network
+          import android.net.NetworkCapabilities
+          import android.net.NetworkRequest
+          import android.os.Build
+          import android.os.Handler
+          import android.os.Looper
+          import android.util.TypedValue
+          import android.view.Gravity
+          import android.view.KeyEvent
+          import android.view.MotionEvent
+          import android.view.View
+          import android.view.WindowManager
+          import android.view.accessibility.AccessibilityEvent
+          import android.view.accessibility.AccessibilityNodeInfo
+          import android.view.accessibility.AccessibilityWindowInfo
+          import android.widget.FrameLayout
+          import android.widget.LinearLayout
+          import android.widget.TextView
+          import android.widget.Toast
+          import org.json.JSONObject
+          import java.util.ArrayDeque
+          import java.util.Locale
+          import java.util.concurrent.Executors
+
+          class CalendarAccessibilityService : AccessibilityService() {
+
+              private lateinit var windowManager: WindowManager
+              private var rootContainer: FrameLayout? = null
+              private var masterLayout: LinearLayout? = null
+              private var calendarCard: LinearLayout? = null
+              private var dualCirclesRow: LinearLayout? = null
+              private var solarColumn: LinearLayout? = null
+              private var lunarColumn: LinearLayout? = null
+              private var calendarMidDivider: View? = null
+              private var detailsBand: LinearLayout? = null
+              private var quoteBand: LinearLayout? = null
+              private var priceBoardWrapper: LinearLayout? = null
+              private var priceTwoColsRow: LinearLayout? = null
+              private var priceColLeft: LinearLayout? = null
+              private var priceColLeftItems: LinearLayout? = null
+              private var priceColRight: LinearLayout? = null
+              private var priceColRightItems: LinearLayout? = null
+              private var priceMidDivider: View? = null
+              private var priceTickerRow: LinearLayout? = null
+              private var settingsDock: LinearLayout? = null
+              private var moveHintBanner: TextView? = null
+              private lateinit var params: WindowManager.LayoutParams
+
+              // Header đỉnh & thông tin mở rộng từ xa (thời tiết Ea Kiết)
+              private lateinit var tvTopClock: GradientTextView
+              private lateinit var tvTopDow: GradientTextView
+              private lateinit var tvHoangDaoPill: TextView
+              private lateinit var tvTopExtra: GradientTextView
+
+              // Song Tròn Dương - Âm đối xứng
+              private lateinit var tvSolarTitle: GradientTextView
+              private lateinit var tvSolarYear: GradientTextView
+              private lateinit var solarCircleView: DualMedallionCircleView
+              private lateinit var tvSolarSubInfo: GradientTextView
+
+              private lateinit var tvLunarTitle: GradientTextView
+              private lateinit var tvLunarYear: GradientTextView
+              private lateinit var lunarCircleView: DualMedallionCircleView
+              private lateinit var tvLunarSubInfo: GradientTextView
+              private lateinit var tvRamMung1Badge: GradientTextView
+
+              // Dải Giờ Hoàng Đạo • Mệnh Ngày • Danh ngôn
+              private lateinit var tvGioHoangDaoLine: GradientTextView
+              private lateinit var tvMenhNgayLine: GradientTextView
+              private lateinit var tvQuoteLine: GradientTextView
+
+              // Tiêu đề 2 cột giá & Ticker động
+              private lateinit var tvPriceCol1Header: GradientTextView
+              private lateinit var tvPriceCol2Header: GradientTextView
+              private lateinit var tvTickerText: GradientTextView
+              private lateinit var tvTickerBadge: TextView
+
+              // Tách riêng danh sách View tĩnh & View động để không bao giờ rò rỉ bộ nhớ khi dựng lại bảng giá
+              private val staticPrimaryViews = mutableListOf<GradientTextView>()
+              private val staticAccentViews = mutableListOf<GradientTextView>()
+              private val staticHighlightViews = mutableListOf<GradientTextView>()
+              private val dynamicPrimaryViews = mutableListOf<GradientTextView>()
+              private val dynamicHighlightViews = mutableListOf<GradientTextView>()
+
+              // Menu Remote TV
+              private val settingRowContainers = mutableListOf<LinearLayout>()
+              private lateinit var tvValScale: TextView
+              private lateinit var tvValTransparency: TextView
+              private lateinit var tvValTextColor: TextView
+              private lateinit var tvValLunarCircleColor: TextView
+              private lateinit var tvValBgTheme: TextView
+              private lateinit var tvValLayoutMode: TextView
+              private lateinit var tvValPriceMode: TextView
+              private lateinit var tvValDayOffset: TextView
+
+              private var isEditMode = false
+              private var isMoveSubMode = false
+              private var selectedMenuRow = 0
+              private var currentForegroundPkg: String = ""
+              private var currentLauncherSimpleClass: String = ""
+              private var isTopBarSettingsIconFocused = false
+              private var lastRenderedHourKey = ""
+
+              // Cài đặt cá nhân lưu SharedPreferences
+              private var scalePercent = 75
+              private var transparencyPercent = 20
+              private var textColorIdx = 0
+              private var lunarCircleColorIdx = 0
+              private var bgThemeIdx = 0
+              private var layoutModeIdx = 0
+              private var priceDisplayMode = 0 // 0: Đầy đủ 2 cột, 1: Ticker tự xoay, 2: Ẩn
+              private var dayOffset = 0
+
+              private var boardData = DynamicBoardData.defaultPlaceholder()
+              private var isLastFetchLive = false
+              private var isFetchingPrices = false
+              private var tickerPageIdx = 0
+
+              private val textThemeNames = arrayOf(
+                  "Vàng Rực → Hổ Phách → Kem",
+                  "Vàng Rực → Trắng Ngọc Trai",
+                  "Vàng Rực → Xanh Ngọc Lục Bảo",
+                  "Vàng Rực → Xanh Băng Cyan",
+                  "Trắng Kem & Vàng Kim (Đơn sắc)"
+              )
+
+              private val lunarCircleThemeNames = arrayOf(
+                  "Ánh Trăng Lam (Xanh Dương)",
+                  "Ngọc Bích Tây Nguyên (Xanh Lá)",
+                  "Đỏ Son Lịch Bloc (Đỏ Vàng)"
+              )
+
+              private val bgThemeNames = arrayOf(
+                  "Đen Obsidian #0B0C10 (Mặc định)",
+                  "Kính Đen Slate #121928",
+                  "Đỏ Đô Hoàng Gia",
+                  "Nâu Trầm Hương",
+                  "Trong suốt hoàn toàn"
+              )
+
+              private val layoutModeNames = arrayOf(
+                  "Đầy đủ (Song Tròn + Giờ/Mệnh + Danh ngôn)",
+                  "Gọn (Song Tròn + Giờ/Mệnh, ẩn Danh ngôn)",
+                  "Siêu gọn (Chỉ Song Tròn + Bảng Giá)",
+                  "Dọc 1 Cột (Cho góc màn hình hẹp)"
+              )
+
+              private val priceModeNames = arrayOf(
+                  "Đầy đủ 2 Cột Động",
+                  "Thanh 1 Dòng tự xoay",
+                  "Ẩn Bảng Giá"
+              )
+
+              private val projectivySettingsKeywords = arrayOf(
+                  "projectivy launcher settings",
+                  "cài đặt projectivy",
+                  "projectivy settings",
+                  "edit channels",
+                  "chỉnh sửa kênh",
+                  "quản lý kênh",
+                  "cấu hình kênh",
+                  "edit categories",
+                  "chỉnh sửa danh mục",
+                  "quản lý danh mục",
+                  "override current launcher",
+                  "ghi đè trình khởi chạy",
+                  "parental control",
+                  "kiểm soát của cha mẹ",
+                  "general settings",
+                  "cài đặt chung",
+                  "thông tin ứng dụng",
+                  "gỡ cài đặt",
+                  "ẩn ứng dụng",
+                  "hide app",
+                  "display over other apps",
+                  "hiển thị trên các ứng dụng khác"
+              )
+
+              private val launcherPackages = mutableSetOf<String>()
+              private val mainHandler = Handler(Looper.getMainLooper())
+              private val ioExecutor = Executors.newSingleThreadExecutor()
+              private var connectivityManager: ConnectivityManager? = null
+
+              companion object {
+                  var instance: CalendarAccessibilityService? = null
+                  private const val PREFS_NAME = "LichVanNien75Prefs"
+                  private const val KEY_X = "pos_x"
+                  private const val KEY_Y = "pos_y"
+                  private const val KEY_SCALE_PCT = "scale_pct"
+                  private const val KEY_TRANSPARENCY = "bg_transparency_pct"
+                  private const val KEY_TEXT_COLOR = "text_color_idx"
+                  private const val KEY_LUNAR_CIRCLE_COLOR = "lunar_circle_color_idx"
+                  private const val KEY_BG_THEME = "bg_theme_idx"
+                  private const val KEY_LAYOUT_MODE = "layout_mode_idx"
+                  private const val KEY_PRICE_MODE = "price_display_mode_v13"
+                  private const val KEY_CACHED_BOARD = "cached_sdui_board_v13_json"
+              }
+
+              private val verifyVisibilityRunnable = Runnable {
+                  if (!isEditMode) verifyActiveWindowAndVisibility()
+              }
+
+              private val clockTickRunnable = object : Runnable {
+                  override fun run() {
+                      if (rootContainer?.visibility == View.VISIBLE) {
+                          tvTopClock.text = "🕒 ${VietCalendarEngine.currentClockText()}"
+                          val hourKey = VietCalendarEngine.currentHourKey(dayOffset)
+                          if (hourKey != lastRenderedHourKey) {
+                              refreshCalendarDataUI()
+                          }
+                      }
+                      mainHandler.postDelayed(this, 1000L)
+                  }
+              }
+
+              private val scheduledPriceFetchRunnable = object : Runnable {
+                  override fun run() {
+                      if (PriceApiClient.isWithinActiveHours(boardData.config)) {
+                          fetchCloudBoardAsync(force = false, showToast = false)
+                      }
+                      scheduleNextHourlyPriceFetch()
+                  }
+              }
+
+              private val tickerRotateRunnable = object : Runnable {
+                  override fun run() {
+                      if (rootContainer?.visibility == View.VISIBLE && priceDisplayMode == 1) {
+                          val total = boardData.tickers.size.coerceAtLeast(1)
+                          tickerPageIdx = (tickerPageIdx + 1) % total
+                          renderTickerLine()
+                      }
+                      val sec = boardData.config.tickerSec.coerceIn(4, 60)
+                      mainHandler.postDelayed(this, sec * 1000L)
+                  }
+              }
+
+              private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+                  override fun onAvailable(network: Network) {
+                      if (PriceApiClient.isWithinActiveHours(boardData.config) || !boardData.hasAnyValidPrice()) {
+                          fetchCloudBoardAsync(force = false, showToast = false)
+                      }
+                  }
+              }
+
+              private val systemEventReceiver = object : BroadcastReceiver() {
+                  override fun onReceive(context: Context?, intent: Intent?) {
+                      when (intent?.action) {
+                          Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> {
+                              val reason = intent.getStringExtra("reason")
+                              if (reason == "homekey" && !isEditMode) {
+                                  currentForegroundPkg = "com.spocky.projengmenu"
+                                  currentLauncherSimpleClass = "mainactivity"
+                                  isTopBarSettingsIconFocused = false
+                                  scheduleVisibilityCheck(180L)
+                              }
+                          }
+                          Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                              refreshCalendarDataUI()
+                              if (PriceApiClient.isWithinActiveHours(boardData.config)) {
+                                  fetchCloudBoardAsync(force = false, showToast = false)
+                              }
+                              scheduleNextHourlyPriceFetch()
+                              scheduleVisibilityCheck(150L)
+                          }
+                      }
+                  }
+              }
+
+              override fun onServiceConnected() {
+                  super.onServiceConnected()
+                  instance = this
+                  loadLauncherPackages()
+                  ensureOverlayCreated()
+                  registerReceiversAndNetwork()
+
+                  mainHandler.removeCallbacks(clockTickRunnable)
+                  mainHandler.post(clockTickRunnable)
+
+                  mainHandler.removeCallbacks(tickerRotateRunnable)
+                  mainHandler.postDelayed(tickerRotateRunnable, boardData.config.tickerSec * 1000L)
+
+                  if (PriceApiClient.isWithinActiveHours(boardData.config) || !boardData.hasAnyValidPrice()) {
+                      fetchCloudBoardAsync(force = false, showToast = false)
+                  }
+                  scheduleNextHourlyPriceFetch()
+              }
+
+              private fun scheduleNextHourlyPriceFetch() {
+                  mainHandler.removeCallbacks(scheduledPriceFetchRunnable)
+                  val delayMs = PriceApiClient.computeDelayUntilNextScheduledFetchMs(boardData.config)
+                  mainHandler.postDelayed(scheduledPriceFetchRunnable, delayMs)
+              }
+
+              private fun scheduleVisibilityCheck(delayMs: Long = 160L) {
+                  mainHandler.removeCallbacks(verifyVisibilityRunnable)
+                  mainHandler.postDelayed(verifyVisibilityRunnable, delayMs)
+              }
+
+              private fun registerReceiversAndNetwork() {
+                  try {
+                      val filter = IntentFilter().apply {
+                          addAction(Intent.ACTION_SCREEN_ON)
+                          addAction(Intent.ACTION_USER_PRESENT)
+                          addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+                      }
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                          registerReceiver(systemEventReceiver, filter, Context.RECEIVER_EXPORTED)
+                      } else {
+                          registerReceiver(systemEventReceiver, filter)
+                      }
+                  } catch (_: Throwable) {}
+
+                  try {
+                      connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                      val req = NetworkRequest.Builder()
+                          .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                          .build()
+                      connectivityManager?.registerNetworkCallback(req, networkCallback)
+                  } catch (_: Throwable) {}
+              }
+
+              private fun loadLauncherPackages() {
+                  launcherPackages.clear()
+                  launcherPackages.add("com.spocky.projengmenu")
+                  launcherPackages.add("com.spocky.projengmenu.debug")
+                  launcherPackages.add("com.mitv.tvhome")
+                  launcherPackages.add("com.google.android.tvlauncher")
+                  launcherPackages.add("com.google.android.apps.tv.launcherx")
+                  launcherPackages.add("com.google.android.leanbacklauncher")
+                  launcherPackages.add("com.oversea.aslauncher")
+                  launcherPackages.add("ca.dstudio.atvlauncher.pro")
+                  launcherPackages.add("ca.dstudio.atvlauncher.free")
+
+                  try {
+                      val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                      val list = packageManager.queryIntentActivities(intent, 0)
+                      for (info in list) {
+                          launcherPackages.add(info.activityInfo.packageName)
+                      }
+                  } catch (_: Throwable) {}
+              }
+
+              private fun isLauncherPkg(pkg: String): Boolean {
+                  if (pkg.isEmpty()) return false
+                  if (launcherPackages.contains(pkg)) return true
+                  val lower = pkg.lowercase(Locale.ROOT)
+                  return lower.contains("projengmenu") ||
+                          lower.contains("tvlauncher") ||
+                          lower.contains("leanbacklauncher") ||
+                          lower.contains("launcherx") ||
+                          lower.contains("atvlauncher") ||
+                          lower.contains("aslauncher") ||
+                          lower.contains("tvhome")
+              }
+
+              private fun isIgnoredSelfOrKeyboardPkg(pkg: String): Boolean {
+                  return pkg == packageName ||
+                          pkg == "com.daklak.eakiet.widget" ||
+                          pkg.contains("inputmethod", ignoreCase = true) ||
+                          pkg.contains("keyboard", ignoreCase = true) ||
+                          pkg.contains("volume", ignoreCase = true)
+              }
+
+              private fun isSettingsOrDialogSimpleClass(simpleCls: String): Boolean {
+                  if (simpleCls.isEmpty()) return false
+                  return simpleCls.contains("settings") ||
+                          simpleCls.contains("preference") ||
+                          simpleCls.contains("guidedstep") ||
+                          simpleCls.contains("dialog") ||
+                          simpleCls.contains("bottomsheet") ||
+                          simpleCls.contains("wallpaper") ||
+                          simpleCls.contains("picker") ||
+                          simpleCls.contains("chooser") ||
+                          simpleCls.contains("onboarding") ||
+                          simpleCls.contains("wizard") ||
+                          simpleCls.contains("parental") ||
+                          simpleCls.contains("about")
+              }
+
+              private fun isLauncherSubMenuOrSettingsOpen(rootNode: AccessibilityNodeInfo?): Boolean {
+                  if (isSettingsOrDialogSimpleClass(currentLauncherSimpleClass)) return true
+                  if (isTopBarSettingsIconFocused) return true
+                  val root = rootNode ?: return false
+
+                  val queue = ArrayDeque<AccessibilityNodeInfo>()
+                  queue.add(root)
+                  var visited = 0
+                  val screenH = resources.displayMetrics.heightPixels
+                  val topBarThreshold = (screenH * 0.18f).toInt()
+                  val rect = Rect()
+
+                  while (!queue.isEmpty() && visited < 120) {
+                      val node = queue.removeFirst()
+                      visited++
+
+                      val idRes = node.viewIdResourceName?.substringAfterLast(':')?.lowercase(Locale.ROOT) ?: ""
+                      if (idRes.isNotEmpty()) {
+                          if (idRes.contains("guidedstep") ||
+                              idRes.contains("guidedactions") ||
+                              idRes.contains("guidance_") ||
+                              idRes.contains("preference") ||
+                              idRes.contains("settings_dialog") ||
+                              idRes.contains("settings_preference") ||
+                              idRes.contains("settings_container") ||
+                              idRes.contains("action_fragment") ||
+                              idRes.contains("design_bottom_sheet") ||
+                              idRes.contains("alerttitle") ||
+                              idRes.contains("select_dialog_listview")
+                          ) {
+                              return true
+                          }
+                      }
+
+                      val cls = node.className?.toString()?.lowercase(Locale.ROOT) ?: ""
+                      if (cls.contains("guidedstep") || cls.contains("preference")) {
+                          return true
+                      }
+
+                      val txt = node.text?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
+                      val desc = node.contentDescription?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
+
+                      if (txt.isNotEmpty() || desc.isNotEmpty()) {
+                          for (kw in projectivySettingsKeywords) {
+                              if (txt.contains(kw) || desc.contains(kw)) {
+                                  return true
+                              }
+                          }
+
+                          if (node.isFocused || node.isSelected) {
+                              if (txt == "settings" || txt == "cài đặt" ||
+                                  desc == "settings" || desc == "cài đặt" ||
+                                  desc.contains("projectivy")
+                              ) {
+                                  node.getBoundsInScreen(rect)
+                                  if (rect.top in 0..topBarThreshold) {
+                                      return true
+                                  }
+                              }
+                          }
+                      }
+
+                      val childCount = node.childCount
+                      for (i in 0 until childCount) {
+                          val child = try { node.getChild(i) } catch (_: Throwable) { null }
+                          if (child != null) queue.add(child)
+                      }
+                  }
+                  return false
+              }
+
+              private fun setOverlayVisible(visible: Boolean) {
+                  val view = rootContainer ?: return
+                  if (visible) {
+                      if (view.visibility != View.VISIBLE) {
+                          view.visibility = View.VISIBLE
+                          tvTopClock.text = "🕒 ${VietCalendarEngine.currentClockText()}"
+                          refreshCalendarDataUI()
+                      }
+                  } else {
+                      if (view.visibility != View.GONE) {
+                          view.visibility = View.GONE
+                      }
+                  }
+              }
+
+              private fun verifyActiveWindowAndVisibility() {
+                  if (isEditMode) return
+                  if (rootContainer == null) return
+
+                  var activeRoot: AccessibilityNodeInfo? = null
+                  var detectedPkg: String? = null
+                  var hasNonLauncherAppWindow = false
+                  var appWindowCount = 0
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                      try {
+                          val winList = windows
+                          if (!winList.isNullOrEmpty()) {
+                              for (w in winList) {
+                                  if (w.type == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                                      val wRoot = try { w.root } catch (_: Throwable) { null }
+                                      val p = wRoot?.packageName?.toString()
+                                      if (!p.isNullOrEmpty() && !isIgnoredSelfOrKeyboardPkg(p)) {
+                                          appWindowCount++
+                                          if (!isLauncherPkg(p)) hasNonLauncherAppWindow = true
+                                          if (w.isActive || w.isFocused || detectedPkg == null) {
+                                              detectedPkg = p
+                                              if (wRoot != null) activeRoot = wRoot
+                                          }
+                                      } else if (w.isActive || w.isFocused) {
+                                          appWindowCount++
+                                      }
+                                  } else if (w.type == AccessibilityWindowInfo.TYPE_SYSTEM) {
+                                      if (w.isActive || w.isFocused) {
+                                          val sp = try { w.root?.packageName?.toString() } catch (_: Throwable) { null }
+                                          if (!sp.isNullOrEmpty() && !isIgnoredSelfOrKeyboardPkg(sp)) {
+                                              hasNonLauncherAppWindow = true
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      } catch (_: Throwable) {}
+                  }
+
+                  try {
+                      val rw = rootInActiveWindow
+                      val activePkg = rw?.packageName?.toString()
+                      if (!activePkg.isNullOrEmpty() && !isIgnoredSelfOrKeyboardPkg(activePkg)) {
+                          detectedPkg = activePkg
+                          activeRoot = rw
+                          if (!isLauncherPkg(activePkg)) hasNonLauncherAppWindow = true
+                      }
+                  } catch (_: Throwable) {}
+
+                  if (hasNonLauncherAppWindow || appWindowCount > 1) {
+                      setOverlayVisible(false)
+                      return
+                  }
+
+                  val effectivePkg = detectedPkg ?: currentForegroundPkg
+                  if (effectivePkg.isEmpty() || !isLauncherPkg(effectivePkg)) {
+                      setOverlayVisible(false)
+                      return
+                  }
+
+                  currentForegroundPkg = effectivePkg
+
+                  if (isLauncherSubMenuOrSettingsOpen(activeRoot)) {
+                      setOverlayVisible(false)
+                  } else {
+                      setOverlayVisible(true)
+                  }
+              }
+
+              override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+                  val evType = event?.eventType ?: return
+                  val pkg = event.packageName?.toString() ?: ""
+
+                  when (evType) {
+                      AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                          if (pkg.isNotEmpty() && !isIgnoredSelfOrKeyboardPkg(pkg)) {
+                              currentForegroundPkg = pkg
+                              val cls = event.className?.toString() ?: ""
+                              if (isLauncherPkg(pkg) && cls.isNotEmpty()) {
+                                  val lowerCls = cls.lowercase(Locale.ROOT)
+                                  if (!lowerCls.startsWith("android.widget.") &&
+                                      !lowerCls.startsWith("android.view.") &&
+                                      !lowerCls.startsWith("androidx.recyclerview.")
+                                  ) {
+                                      currentLauncherSimpleClass = lowerCls.substringAfterLast('.')
+                                  }
+                              } else if (!isLauncherPkg(pkg)) {
+                                  isTopBarSettingsIconFocused = false
+                              }
+                          }
+                          if (!isEditMode) scheduleVisibilityCheck(80L)
+                      }
+                      AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                          if (!isEditMode && isLauncherPkg(pkg)) {
+                              val src = try { event.source } catch (_: Throwable) { null }
+                              if (src != null) {
+                                  val txt = src.text?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
+                                  val desc = src.contentDescription?.toString()?.trim()?.lowercase(Locale.ROOT) ?: ""
+                                  val rect = Rect()
+                                  src.getBoundsInScreen(rect)
+                                  val topLimit = (resources.displayMetrics.heightPixels * 0.18f).toInt()
+                                  isTopBarSettingsIconFocused = (rect.top in 0..topLimit) && (
+                                          txt == "settings" || txt == "cài đặt" ||
+                                          desc == "settings" || desc == "cài đặt" ||
+                                          desc.contains("projectivy")
+                                  )
+                              } else {
+                                  isTopBarSettingsIconFocused = false
+                              }
+                              scheduleVisibilityCheck(150L)
+                          }
+                      }
+                      AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                          if (!isEditMode) scheduleVisibilityCheck(150L)
+                      }
+                  }
+              }
+
+              private fun dp(value: Float): Int {
+                  return TypedValue.applyDimension(
+                      TypedValue.COMPLEX_UNIT_DIP,
+                      value,
+                      resources.displayMetrics
+                  ).toInt()
+              }
+
+              @SuppressLint("ClickableViewAccessibility")
+              private fun ensureOverlayCreated() {
+                  if (rootContainer != null) return
+                  windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+                  val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                  scalePercent = prefs.getInt(KEY_SCALE_PCT, 75).coerceIn(40, 150)
+                  transparencyPercent = prefs.getInt(KEY_TRANSPARENCY, 20).coerceIn(0, 100)
+                  textColorIdx = prefs.getInt(KEY_TEXT_COLOR, 0).coerceIn(0, textThemeNames.size - 1)
+                  lunarCircleColorIdx = prefs.getInt(KEY_LUNAR_CIRCLE_COLOR, 0).coerceIn(0, lunarCircleThemeNames.size - 1)
+                  bgThemeIdx = prefs.getInt(KEY_BG_THEME, 0).coerceIn(0, bgThemeNames.size - 1)
+                  layoutModeIdx = prefs.getInt(KEY_LAYOUT_MODE, 0).coerceIn(0, layoutModeNames.size - 1)
+                  priceDisplayMode = prefs.getInt(KEY_PRICE_MODE, 0).coerceIn(0, priceModeNames.size - 1)
+
+                  // Khôi phục dữ liệu SDUI từ cache để bật TV có số hiển thị ngay lập tức
+                  val cachedStr = prefs.getString(KEY_CACHED_BOARD, null)
+                  if (!cachedStr.isNullOrEmpty()) {
+                      try {
+                          boardData = DynamicBoardData.fromJson(JSONObject(cachedStr))
+                      } catch (_: Throwable) {}
+                  }
+
+                  val metrics = resources.displayMetrics
+                  val defaultX = (metrics.widthPixels * 0.44f).toInt()
+                  val defaultY = (metrics.heightPixels * 0.08f).toInt()
+
+                  val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                      WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+                  } else {
+                      @Suppress("DEPRECATION")
+                      WindowManager.LayoutParams.TYPE_PHONE
+                  }
+
+                  params = WindowManager.LayoutParams(
+                      WindowManager.LayoutParams.WRAP_CONTENT,
+                      WindowManager.LayoutParams.WRAP_CONTENT,
+                      windowType,
+                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                              WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                      PixelFormat.TRANSLUCENT
+                  ).apply {
+                      gravity = Gravity.TOP or Gravity.START
+                      x = prefs.getInt(KEY_X, defaultX)
+                      y = prefs.getInt(KEY_Y, defaultY)
+                  }
+
+                  val frame = object : FrameLayout(this) {
+                      override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                          if (!isEditMode) return super.dispatchKeyEvent(event)
+
+                          if (event.action == KeyEvent.ACTION_DOWN) {
+                              if (isMoveSubMode) {
+                                  val step = when {
+                                      event.repeatCount > 6 -> 72
+                                      event.repeatCount > 2 -> 36
+                                      else -> 14
+                                  }
+                                  when (event.keyCode) {
+                                      KeyEvent.KEYCODE_DPAD_LEFT -> { moveBy(-step, 0); return true }
+                                      KeyEvent.KEYCODE_DPAD_RIGHT -> { moveBy(step, 0); return true }
+                                      KeyEvent.KEYCODE_DPAD_UP -> { moveBy(0, -step); return true }
+                                      KeyEvent.KEYCODE_DPAD_DOWN -> { moveBy(0, step); return true }
+                                      KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                                          isMoveSubMode = false
+                                          updateSettingsDockUI()
+                                          applyVisualStyle()
+                                          return true
+                                      }
+                                      KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_MENU -> {
+                                          enableEditMode(false)
+                                          return true
+                                      }
+                                  }
+                              } else {
+                                  when (event.keyCode) {
+                                      KeyEvent.KEYCODE_DPAD_UP -> {
+                                          selectedMenuRow = (selectedMenuRow - 1 + settingRowContainers.size) % settingRowContainers.size
+                                          updateSettingsDockUI()
+                                          return true
+                                      }
+                                      KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                          selectedMenuRow = (selectedMenuRow + 1) % settingRowContainers.size
+                                          updateSettingsDockUI()
+                                          return true
+                                      }
+                                      KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                          adjustSettingValue(-1)
+                                          return true
+                                      }
+                                      KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                          adjustSettingValue(1)
+                                          return true
+                                      }
+                                      KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                                          when (selectedMenuRow) {
+                                              6 -> {
+                                                  fetchCloudBoardAsync(force = true, showToast = true)
+                                              }
+                                              7 -> {
+                                                  dayOffset = 0
+                                                  lastRenderedHourKey = ""
+                                                  refreshCalendarDataUI()
+                                                  updateSettingsDockUI()
+                                              }
+                                              8 -> {
+                                                  isMoveSubMode = true
+                                                  updateSettingsDockUI()
+                                                  applyVisualStyle()
+                                              }
+                                              else -> {
+                                                  enableEditMode(false)
+                                              }
+                                          }
+                                          return true
+                                      }
+                                      KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_MENU -> {
+                                          enableEditMode(false)
+                                          return true
+                                      }
+                                  }
+                              }
+                          }
+                          return super.dispatchKeyEvent(event)
+                      }
+                  }
+                  frame.setBackgroundColor(Color.TRANSPARENT)
+                  frame.clipChildren = false
+                  frame.clipToPadding = false
+                  frame.visibility = View.GONE
+
+                  val content = buildMasterLayout()
+                  frame.addView(content)
+                  masterLayout = content
+
+                  var initX = 0
+                  var initY = 0
+                  var touchX = 0f
+                  var touchY = 0f
+                  calendarCard?.setOnTouchListener { _, ev ->
+                      when (ev.action) {
+                          MotionEvent.ACTION_DOWN -> {
+                              initX = params.x
+                              initY = params.y
+                              touchX = ev.rawX
+                              touchY = ev.rawY
+                              false
+                          }
+                          MotionEvent.ACTION_MOVE -> {
+                              params.x = initX + (ev.rawX - touchX).toInt()
+                              params.y = initY + (ev.rawY - touchY).toInt()
+                              try { windowManager.updateViewLayout(frame, params) } catch (_: Throwable) {}
+                              savePosition()
+                              true
+                          }
+                          else -> false
+                      }
+                  }
+
+                  try {
+                      windowManager.addView(frame, params)
+                      rootContainer = frame
+                  } catch (_: Throwable) {}
+
+                  tvTopClock.text = "🕒 ${VietCalendarEngine.currentClockText()}"
+                  refreshCalendarDataUI()
+                  renderDynamicBoardUI()
+                  applyTextAndCircleColors()
+                  applyLayoutMode()
+                  applyVisualStyle()
+                  applyScale()
+                  updateSettingsDockUI()
+                  verifyActiveWindowAndVisibility()
+              }
+
+              private fun buildMasterLayout(): LinearLayout {
+                  staticPrimaryViews.clear()
+                  staticAccentViews.clear()
+                  staticHighlightViews.clear()
+                  dynamicPrimaryViews.clear()
+                  dynamicHighlightViews.clear()
+                  settingRowContainers.clear()
+
+                  val master = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      clipChildren = false
+                      clipToPadding = false
+                  }
+
+                  val card = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER_HORIZONTAL
+                      setPadding(dp(10f), dp(7f), dp(10f), dp(7f))
+                  }
+                  calendarCard = card
+
+                  // ======================================================
+                  // TẦNG 1: THANH ĐỈNH (ĐỒNG HỒ • THỨ • HOÀNG ĐẠO + THỜI TIẾT TỪ XA)
+                  // ======================================================
+                  val topBar = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          bottomMargin = dp(2.5f)
+                      }
+                  }
+
+                  tvTopClock = GradientTextView(this).apply {
+                      text = "🕒 08:30:00"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11.5f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setShadowLayer(4f, 0f, 1.5f, Color.argb(235, 0, 0, 0))
+                      setPadding(0, 0, dp(8f), 0)
+                  }
+                  staticHighlightViews.add(tvTopClock)
+
+                  tvTopDow = GradientTextView(this).apply {
+                      text = "•  THỨ BẢY  •"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setShadowLayer(4f, 0f, 1.5f, Color.argb(235, 0, 0, 0))
+                      setPadding(0, 0, dp(8f), 0)
+                  }
+                  staticPrimaryViews.add(tvTopDow)
+
+                  tvHoangDaoPill = TextView(this).apply {
+                      text = "★ HOÀNG ĐẠO"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.2f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      gravity = Gravity.CENTER
+                      setPadding(dp(8f), dp(1.8f), dp(8f), dp(1.8f))
+                      background = GradientDrawable().apply {
+                          cornerRadius = dp(10f).toFloat()
+                          setColor(Color.parseColor("#FDE68A"))
+                          setStroke(dp(1f), Color.parseColor("#D97706"))
+                      }
+                  }
+
+                  topBar.addView(tvTopClock)
+                  topBar.addView(tvTopDow)
+                  topBar.addView(tvHoangDaoPill)
+                  card.addView(topBar)
+
+                  // Dòng phụ điều khiển từ xa (VD: Thời tiết Ea Kiết 24°C • Mưa 15%)
+                  tvTopExtra = GradientTextView(this).apply {
+                      text = ""
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.4f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      gravity = Gravity.CENTER
+                      visibility = View.GONE
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                      setPadding(0, 0, 0, dp(3f))
+                  }
+                  staticPrimaryViews.add(tvTopExtra)
+                  card.addView(tvTopExtra)
+
+                  card.addView(createHorizontalDivider(bottomDp = 5f))
+
+                  // ======================================================
+                  // TẦNG 2: SONG TRÒN ĐỐI XỨNG DƯƠNG LỊCH <-> ÂM LỊCH
+                  // ======================================================
+                  val circlesRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(448f),
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      )
+                  }
+                  dualCirclesRow = circlesRow
+
+                  val leftCol = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER_HORIZONTAL
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  solarColumn = leftCol
+
+                  tvSolarTitle = GradientTextView(this).apply {
+                      text = "DƯƠNG LỊCH"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12.2f)
+                      typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                      setShadowLayer(4f, 0f, 1.5f, Color.argb(235, 0, 0, 0))
+                  }
+                  staticAccentViews.add(tvSolarTitle)
+
+                  tvSolarYear = GradientTextView(this).apply {
+                      text = "Năm: 2026"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.5f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      gravity = Gravity.CENTER
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                      setPadding(0, dp(1f), 0, dp(4f))
+                  }
+                  staticPrimaryViews.add(tvSolarYear)
+
+                  solarCircleView = DualMedallionCircleView(this).apply {
+                      palette = DualMedallionCircleView.SOLAR_PALETTE
+                      badgeEmoji = "☀️"
+                  }
+
+                  tvSolarSubInfo = GradientTextView(this).apply {
+                      text = "Tuần 48 • Hôm nay"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.6f)
+                      gravity = Gravity.CENTER
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                      setPadding(0, dp(3f), 0, 0)
+                  }
+                  staticPrimaryViews.add(tvSolarSubInfo)
+
+                  leftCol.addView(tvSolarTitle)
+                  leftCol.addView(tvSolarYear)
+                  leftCol.addView(solarCircleView, LinearLayout.LayoutParams(
+                      LinearLayout.LayoutParams.WRAP_CONTENT,
+                      LinearLayout.LayoutParams.WRAP_CONTENT
+                  ))
+                  leftCol.addView(tvSolarSubInfo)
+
+                  val midDiv = View(this).apply {
+                      setBackgroundColor(Color.argb(145, 241, 184, 31))
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(1.2f).coerceAtLeast(1),
+                          dp(130f)
+                      ).apply {
+                          leftMargin = dp(6f)
+                          rightMargin = dp(6f)
+                      }
+                  }
+                  calendarMidDivider = midDiv
+
+                  val rightCol = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER_HORIZONTAL
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  lunarColumn = rightCol
+
+                  tvLunarTitle = GradientTextView(this).apply {
+                      text = "ÂM LỊCH"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12.2f)
+                      typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                      setShadowLayer(4f, 0f, 1.5f, Color.argb(235, 0, 0, 0))
+                  }
+                  staticAccentViews.add(tvLunarTitle)
+
+                  tvLunarYear = GradientTextView(this).apply {
+                      text = "Năm: Bính Ngọ"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.5f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      gravity = Gravity.CENTER
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                      setPadding(0, dp(1f), 0, dp(4f))
+                  }
+                  staticPrimaryViews.add(tvLunarYear)
+
+                  lunarCircleView = DualMedallionCircleView(this).apply {
+                      palette = DualMedallionCircleView.LUNAR_PALETTES[0]
+                      badgeEmoji = "🐎"
+                  }
+
+                  tvLunarSubInfo = GradientTextView(this).apply {
+                      text = "Ngày Nhâm Tý • Thg Kỷ Hợi"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.6f)
+                      gravity = Gravity.CENTER
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                      setPadding(0, dp(3f), 0, 0)
+                  }
+                  staticPrimaryViews.add(tvLunarSubInfo)
+
+                  tvRamMung1Badge = GradientTextView(this).apply {
+                      text = "🌕 HÔM NAY NGÀY RẰM"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 8.8f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      gravity = Gravity.CENTER
+                      visibility = View.GONE
+                      setPadding(dp(7f), dp(1.8f), dp(7f), dp(1.8f))
+                      background = GradientDrawable().apply {
+                          cornerRadius = dp(9f).toFloat()
+                          colors = intArrayOf(
+                              Color.argb(220, 120, 53, 15),
+                              Color.argb(220, 69, 26, 3)
+                          )
+                          orientation = GradientDrawable.Orientation.LEFT_RIGHT
+                          setStroke(dp(1f), Color.parseColor("#F1B81F"))
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.WRAP_CONTENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          topMargin = dp(2.5f)
+                      }
+                      setLeftToRightGradient(
+                          intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#FBBF24"),
+                              Color.parseColor("#FEF3C7")
+                          )
+                      )
+                  }
+
+                  rightCol.addView(tvLunarTitle)
+                  rightCol.addView(tvLunarYear)
+                  rightCol.addView(lunarCircleView, LinearLayout.LayoutParams(
+                      LinearLayout.LayoutParams.WRAP_CONTENT,
+                      LinearLayout.LayoutParams.WRAP_CONTENT
+                  ))
+                  rightCol.addView(tvLunarSubInfo)
+                  rightCol.addView(tvRamMung1Badge)
+
+                  circlesRow.addView(leftCol)
+                  circlesRow.addView(midDiv)
+                  circlesRow.addView(rightCol)
+                  card.addView(circlesRow)
+
+                  // ======================================================
+                  // TẦNG 3: DẢI GIỜ HOÀNG ĐẠO • MỆNH NGÀY • DANH NGÔN
+                  // ======================================================
+                  val detBand = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(dp(8f), dp(4f), dp(8f), dp(4f))
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(448f),
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          topMargin = dp(5f)
+                      }
+                  }
+                  detailsBand = detBand
+
+                  tvGioHoangDaoLine = GradientTextView(this).apply {
+                      text = "★ Giờ Hoàng Đạo: --"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.5f)
+                      setShadowLayer(3f, 0f, 1f, Color.argb(230, 0, 0, 0))
+                  }
+                  staticPrimaryViews.add(tvGioHoangDaoLine)
+
+                  tvMenhNgayLine = GradientTextView(this).apply {
+                      text = "✦ Mệnh: --"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.5f)
+                      setShadowLayer(3f, 0f, 1f, Color.argb(230, 0, 0, 0))
+                      setPadding(0, dp(1.5f), 0, 0)
+                  }
+                  staticPrimaryViews.add(tvMenhNgayLine)
+
+                  detBand.addView(tvGioHoangDaoLine)
+                  detBand.addView(tvMenhNgayLine)
+                  card.addView(detBand)
+
+                  val qBand = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(448f),
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          topMargin = dp(3f)
+                      }
+                  }
+                  quoteBand = qBand
+
+                  tvQuoteLine = GradientTextView(this).apply {
+                      text = ""
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.2f)
+                      typeface = Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+                      gravity = Gravity.CENTER
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                  }
+                  staticPrimaryViews.add(tvQuoteLine)
+                  qBand.addView(tvQuoteLine)
+                  card.addView(qBand)
+
+                  // ======================================================
+                  // TẦNG 4: BẢNG GIÁ ĐỘNG 2 CỘT (SERVER-DRIVEN UI)
+                  // ======================================================
+                  val priceWrapper = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(448f),
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          topMargin = dp(5f)
+                      }
+                  }
+                  priceBoardWrapper = priceWrapper
+                  priceWrapper.addView(createHorizontalDivider(bottomDp = 5f))
+
+                  val pTwoCols = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.TOP
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      )
+                  }
+                  priceTwoColsRow = pTwoCols
+
+                  val pLeft = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.15f)
+                  }
+                  priceColLeft = pLeft
+
+                  tvPriceCol1Header = GradientTextView(this).apply {
+                      text = "NÔNG SẢN ĐẮK LẮK (VNĐ/KG)"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.2f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setShadowLayer(3f, 0f, 1f, Color.argb(230, 0, 0, 0))
+                      setPadding(0, 0, 0, dp(2.5f))
+                  }
+                  staticAccentViews.add(tvPriceCol1Header)
+                  pLeft.addView(tvPriceCol1Header)
+
+                  val pLeftItems = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      )
+                  }
+                  priceColLeftItems = pLeftItems
+                  pLeft.addView(pLeftItems)
+
+                  val pMidDiv = View(this).apply {
+                      setBackgroundColor(Color.argb(125, 241, 184, 31))
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(1.1f).coerceAtLeast(1),
+                          LinearLayout.LayoutParams.MATCH_PARENT
+                      ).apply {
+                          leftMargin = dp(7f)
+                          rightMargin = dp(7f)
+                          topMargin = dp(2f)
+                          bottomMargin = dp(2f)
+                      }
+                  }
+                  priceMidDivider = pMidDiv
+
+                  val pRight = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.85f)
+                  }
+                  priceColRight = pRight
+
+                  tvPriceCol2Header = GradientTextView(this).apply {
+                      text = "VÀNG & XĂNG DẦU (VÙNG 2)"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.2f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setShadowLayer(3f, 0f, 1f, Color.argb(230, 0, 0, 0))
+                      setPadding(0, 0, 0, dp(2.5f))
+                  }
+                  staticAccentViews.add(tvPriceCol2Header)
+                  pRight.addView(tvPriceCol2Header)
+
+                  val pRightItems = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      )
+                  }
+                  priceColRightItems = pRightItems
+                  pRight.addView(pRightItems)
+
+                  pTwoCols.addView(pLeft)
+                  pTwoCols.addView(pMidDiv)
+                  pTwoCols.addView(pRight)
+                  priceWrapper.addView(pTwoCols)
+
+                  // Thanh Ticker 1 dòng động
+                  val tickerRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER
+                      visibility = View.GONE
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      )
+                  }
+                  priceTickerRow = tickerRow
+
+                  tvTickerText = GradientTextView(this).apply {
+                      text = "☕ Đang tải dữ liệu..."
+                      isSingleLine = true
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.2f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setShadowLayer(3f, 0f, 1f, Color.argb(230, 0, 0, 0))
+                  }
+                  staticHighlightViews.add(tvTickerText)
+
+                  tvTickerBadge = TextView(this).apply {
+                      isSingleLine = true
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 8.5f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setPadding(dp(4f), dp(1f), dp(4f), dp(1f))
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.WRAP_CONTENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          leftMargin = dp(5f)
+                      }
+                  }
+
+                  tickerRow.addView(tvTickerText)
+                  tickerRow.addView(tvTickerBadge)
+                  priceWrapper.addView(tickerRow)
+
+                  card.addView(priceWrapper)
+                  master.addView(card)
+
+                  // ======================================================
+                  // BANNER DI CHUYỂN & MENU CÀI ĐẶT REMOTE TV
+                  // ======================================================
+                  val moveBanner = TextView(this).apply {
+                      text = "✥ DI CHUYỂN BẢNG: Nhấn/Giữ ◀ ▶ ▲ ▼ · OK: Về Menu · BACK: Lưu"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10f)
+                      setTextColor(Color.parseColor("#FDE047"))
+                      typeface = Typeface.DEFAULT_BOLD
+                      gravity = Gravity.CENTER
+                      visibility = View.GONE
+                      setPadding(dp(8f), dp(5f), dp(8f), dp(5f))
+                      background = GradientDrawable().apply {
+                          cornerRadius = dp(8f).toFloat()
+                          setColor(Color.argb(242, 11, 12, 16))
+                          setStroke(dp(1.5f), Color.parseColor("#F1B81F"))
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(448f),
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          topMargin = dp(5f)
+                      }
+                  }
+                  moveHintBanner = moveBanner
+                  master.addView(moveBanner)
+
+                  val dock = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      visibility = View.GONE
+                      setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
+                      background = GradientDrawable().apply {
+                          cornerRadius = dp(10f).toFloat()
+                          setColor(Color.argb(245, 11, 12, 16))
+                          setStroke(dp(1.5f), Color.parseColor("#F1B81F"))
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          dp(448f),
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply {
+                          topMargin = dp(6f)
+                      }
+                  }
+                  settingsDock = dock
+
+                  val dockTitle = TextView(this).apply {
+                      text = "⚙️ CÀI ĐẶT LỊCH SONG TRÒN & SDUI v13.0 (▲/▼: Chọn · ◀/▶: Chỉnh · BACK: Lưu)"
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.2f)
+                      setTextColor(Color.parseColor("#F1B81F"))
+                      typeface = Typeface.DEFAULT_BOLD
+                      setPadding(dp(4f), 0, dp(4f), dp(4f))
+                  }
+                  dock.addView(dockTitle)
+
+                  tvValScale = addSettingRow(dock, "1. Cỡ bảng (TV):")
+                  tvValTransparency = addSettingRow(dock, "2. Độ trong suốt nền:")
+                  tvValTextColor = addSettingRow(dock, "3. Màu chữ & tiêu đề:")
+                  tvValLunarCircleColor = addSettingRow(dock, "4. Màu vòng tròn Âm lịch:")
+                  tvValBgTheme = addSettingRow(dock, "5. Chủ đề nền thẻ:")
+                  tvValLayoutMode = addSettingRow(dock, "6. Kiểu bố cục lịch:")
+                  tvValPriceMode = addSettingRow(dock, "7. Bảng giá Động (JSON):")
+                  tvValDayOffset = addSettingRow(dock, "8. Xem ngày khác:")
+                  addSettingRow(dock, "9. Vị trí bảng trên TV:").apply {
+                      text = "Nhấn OK để di chuyển ✥"
+                  }
+
+                  master.addView(dock)
+                  return master
+              }
+
+              private fun createHorizontalDivider(bottomDp: Float): View {
+                  return View(this).apply {
+                      setBackgroundColor(Color.argb(135, 241, 184, 31))
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          dp(1.1f).coerceAtLeast(1)
+                      ).apply {
+                          bottomMargin = dp(bottomDp)
+                      }
+                  }
+              }
+
+              /** Dựng 1 dòng bất kỳ từ mảng JSON động col1/col2 */
+              private fun createDynamicPriceRow(item: DynamicRow): LinearLayout {
+                  val row = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                      setPadding(0, dp(1.4f), 0, dp(1.4f))
+                  }
+
+                  val tvLbl = GradientTextView(this).apply {
+                      text = item.label
+                      isSingleLine = true
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 9.6f)
+                      setShadowLayer(3f, 0f, 1f, Color.argb(225, 0, 0, 0))
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  }
+                  dynamicPrimaryViews.add(tvLbl)
+
+                  val displayVal = if (item.muted && item.label.contains("Cập nhật", ignoreCase = true)) {
+                      val dot = if (isLastFetchLive) "🟢" else "🟡"
+                      "$dot ${item.valText}"
+                  } else {
+                      item.valText
+                  }
+
+                  val tvVal = GradientTextView(this).apply {
+                      text = displayVal
+                      isSingleLine = true
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, if (item.muted) 9.0f else 10.3f)
+                      typeface = if (item.muted) Typeface.NORMAL else Typeface.DEFAULT_BOLD
+                      gravity = Gravity.END
+                      setShadowLayer(3f, 0f, 1f, Color.argb(230, 0, 0, 0))
+                      setPadding(dp(4f), 0, 0, 0)
+                  }
+                  if (item.muted) dynamicPrimaryViews.add(tvVal) else dynamicHighlightViews.add(tvVal)
+
+                  row.addView(tvLbl)
+                  row.addView(tvVal)
+
+                  if (item.badge.isNotBlank() && item.style != "none") {
+                      val tvBadge = TextView(this).apply {
+                          isSingleLine = true
+                          setTextSize(TypedValue.COMPLEX_UNIT_DIP, 8.0f)
+                          typeface = Typeface.DEFAULT_BOLD
+                          setPadding(dp(3.5f), dp(0.6f), dp(3.5f), dp(0.6f))
+                          layoutParams = LinearLayout.LayoutParams(
+                              LinearLayout.LayoutParams.WRAP_CONTENT,
+                              LinearLayout.LayoutParams.WRAP_CONTENT
+                          ).apply {
+                              leftMargin = dp(3.5f)
+                          }
+                      }
+                      styleDynamicBadge(tvBadge, item.badge, item.style)
+                      if (tvBadge.visibility == View.VISIBLE) {
+                          row.addView(tvBadge)
+                      }
+                  }
+
+                  return row
+              }
+
+              private fun styleDynamicBadge(badge: TextView, textRaw: String, styleRaw: String) {
+                  val t = textRaw.trim()
+                  val st = styleRaw.trim().lowercase(Locale.ROOT)
+
+                  if (t.isEmpty() || st == "none" || t == "0" || t == "+0" || t == "-0" || t.equals("Ổn định", ignoreCase = true)) {
+                      badge.visibility = View.GONE
+                      return
+                  }
+
+                  badge.visibility = View.VISIBLE
+                  badge.text = t
+                  val bg = GradientDrawable().apply { cornerRadius = dp(4f).toFloat() }
+
+                  val effectiveStyle = if (st.isEmpty()) {
+                      when {
+                          t.contains("Tăng", true) -> "trend_up"
+                          t.contains("Giảm", true) -> "trend_down"
+                          t.contains("Đi ngang", true) -> "neutral"
+                          t.startsWith("+") -> "up"
+                          t.startsWith("-") -> "down"
+                          else -> "neutral"
+                      }
+                  } else st
+
+                  when (effectiveStyle) {
+                      "up" -> {
+                          badge.setTextColor(Color.parseColor("#6EE7B7"))
+                          bg.setColor(Color.argb(145, 5, 150, 105))
+                      }
+                      "down" -> {
+                          badge.setTextColor(Color.parseColor("#FCA5A5"))
+                          bg.setColor(Color.argb(165, 220, 38, 38))
+                      }
+                      "trend_up" -> {
+                          badge.setTextColor(Color.parseColor("#5EEAD4"))
+                          bg.setColor(Color.argb(150, 13, 148, 136))
+                      }
+                      "trend_down" -> {
+                          badge.setTextColor(Color.parseColor("#FCA5A5"))
+                          bg.setColor(Color.argb(165, 185, 28, 28))
+                      }
+                      "alert" -> {
+                          badge.setTextColor(Color.parseColor("#FEF08A"))
+                          bg.setColor(Color.argb(170, 180, 83, 9))
+                      }
+                      else -> {
+                          badge.setTextColor(Color.parseColor("#E2E8F0"))
+                          bg.setColor(Color.argb(95, 100, 116, 139))
+                      }
+                  }
+                  badge.background = bg
+              }
+
+              private fun fetchCloudBoardAsync(force: Boolean, showToast: Boolean) {
+                  if (isFetchingPrices) return
+                  if (!force && !PriceApiClient.isWithinActiveHours(boardData.config) && boardData.hasAnyValidPrice()) return
+
+                  isFetchingPrices = true
+                  val snapshot = boardData
+
+                  ioExecutor.execute {
+                      try {
+                          val res = PriceApiClient.fetchBoardData(this@CalendarAccessibilityService, snapshot)
+                          if (res != null) {
+                              boardData = res.data
+                              isLastFetchLive = true
+                              getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                  .edit()
+                                  .putString(KEY_CACHED_BOARD, res.data.toJson().toString())
+                                  .apply()
+
+                              mainHandler.post {
+                                  renderDynamicBoardUI()
+                                  refreshCalendarDataUI()
+                                  scheduleNextHourlyPriceFetch()
+                                  if (showToast) {
+                                      val extraMsg = if (res.migratedToNewUrl) " (Đã tự chuyển server mới)" else ""
+                                      Toast.makeText(
+                                          this@CalendarAccessibilityService,
+                                          "✅ Đã đồng bộ dữ liệu động (${res.elapsedMs}ms)$extraMsg",
+                                          Toast.LENGTH_SHORT
+                                      ).show()
+                                  }
+                              }
+                          } else if (showToast) {
+                              mainHandler.post {
+                                  val activeUrl = PriceApiClient.getActiveApiUrl(this@CalendarAccessibilityService)
+                                  val msg = if (!activeUrl.startsWith("http")) {
+                                      "⚠️ Bạn chưa dán link API Vercel vào PriceApiClient.kt!"
+                                  } else {
+                                      "⚠️ Không kết nối được API, đang giữ dữ liệu cache."
+                                  }
+                                  Toast.makeText(this@CalendarAccessibilityService, msg, Toast.LENGTH_LONG).show()
+                              }
+                          }
+                      } finally {
+                          isFetchingPrices = false
+                      }
+                  }
+              }
+
+              /** Dựng lại toàn bộ bảng giá Cột 1, Cột 2, dòng topExtra và Ticker từ JSON động */
+              private fun renderDynamicBoardUI() {
+                  val leftBox = priceColLeftItems ?: return
+                  val rightBox = priceColRightItems ?: return
+
+                  // Cập nhật dòng phụ đỉnh (VD: Thời tiết Ea Kiết)
+                  val extra = boardData.config.topExtra.trim()
+                  if (extra.isNotEmpty()) {
+                      tvTopExtra.text = extra
+                      tvTopExtra.visibility = View.VISIBLE
+                  } else {
+                      tvTopExtra.visibility = View.GONE
+                  }
+
+                  tvPriceCol1Header.text = boardData.col1.title
+                  tvPriceCol2Header.text = boardData.col2.title
+
+                  leftBox.removeAllViews()
+                  rightBox.removeAllViews()
+                  dynamicPrimaryViews.clear()
+                  dynamicHighlightViews.clear()
+
+                  for (item in boardData.col1.items) {
+                      leftBox.addView(createDynamicPriceRow(item))
+                  }
+                  for (item in boardData.col2.items) {
+                      rightBox.addView(createDynamicPriceRow(item))
+                  }
+
+                  renderTickerLine()
+                  applyTextAndCircleColors()
+              }
+
+              private fun renderTickerLine() {
+                  val list = boardData.tickers
+                  if (list.isEmpty()) {
+                      tvTickerText.text = "☕ Đang chờ dữ liệu..."
+                      tvTickerBadge.visibility = View.GONE
+                      return
+                  }
+                  val item = list[tickerPageIdx % list.size]
+                  tvTickerText.text = item.text
+                  styleDynamicBadge(tvTickerBadge, item.badge, item.style)
+              }
+
+              private fun refreshCalendarDataUI() {
+                  lastRenderedHourKey = VietCalendarEngine.currentHourKey(dayOffset)
+                  val info = VietCalendarEngine.compute(dayOffset)
+
+                  tvTopDow.text = "•  ${info.dayOfWeekStr}  •"
+                  if (info.isHoangDaoDay) {
+                      tvHoangDaoPill.text = "★ HOÀNG ĐẠO"
+                      tvHoangDaoPill.setTextColor(Color.parseColor("#991B1B"))
+                  } else {
+                      tvHoangDaoPill.text = "★ HẮC ĐẠO"
+                      tvHoangDaoPill.setTextColor(Color.parseColor("#1F2937"))
+                  }
+
+                  tvSolarYear.text = "Năm: ${info.solarYear}"
+                  solarCircleView.dayValueText = String.format(Locale.US, "%02d", info.solarDay)
+                  solarCircleView.monthValueText = String.format(Locale.US, "%02d", info.solarMonth)
+                  solarCircleView.badgeEmoji = "☀️"
+                  solarCircleView.invalidate()
+
+                  val dayTag = when (dayOffset) {
+                      0 -> "Hôm nay"
+                      -1 -> "Hôm qua"
+                      1 -> "Ngày mai"
+                      else -> if (dayOffset > 0) "+$dayOffset ngày" else "$dayOffset ngày"
+                  }
+                  tvSolarSubInfo.text = "Tuần ${info.weekOfYear} • $dayTag"
+
+                  tvLunarYear.text = "Năm: ${info.yearCanChi}"
+                  lunarCircleView.dayValueText = String.format(Locale.US, "%02d", info.lunarDay)
+                  lunarCircleView.monthValueText = String.format(Locale.US, "%02d", info.lunarMonth)
+                  lunarCircleView.badgeEmoji = info.zodiacEmoji
+                  lunarCircleView.isSpecialHighlight = info.isRamOrMung1Today
+                  lunarCircleView.invalidate()
+
+                  tvLunarSubInfo.text = "Ngày ${info.dayCanChi} • Thg ${info.monthCanChi}"
+                  if (info.lunarSpecialReminder != null) {
+                      tvRamMung1Badge.text = info.lunarSpecialReminder
+                      tvRamMung1Badge.visibility = View.VISIBLE
+                  } else {
+                      tvRamMung1Badge.visibility = View.GONE
+                  }
+
+                  val hourStar = if (info.isCurrentHourHoangDao) "★ " else ""
+                  tvGioHoangDaoLine.text = "★ Giờ Hoàng Đạo: ${info.gioHoangDaoShort}"
+                  tvMenhNgayLine.text = "✦ Mệnh: ${info.menhNgayNapAm}  •  Giờ: $hourStar${info.currentHourCanChi}"
+
+                  val remoteQuote = boardData.config.quote.trim()
+                  tvQuoteLine.text = if (remoteQuote.isNotEmpty()) {
+                      remoteQuote
+                  } else {
+                      "“${info.quoteText}” — ${info.quoteAuthor}"
+                  }
+              }
+
+              private fun applyLayoutMode() {
+                  val cRow = dualCirclesRow ?: return
+                  val sCol = solarColumn ?: return
+                  val lCol = lunarColumn ?: return
+                  val cMid = calendarMidDivider ?: return
+                  val dBand = detailsBand ?: return
+                  val qBand = quoteBand ?: return
+                  val pWrap = priceBoardWrapper ?: return
+                  val pRow = priceTwoColsRow ?: return
+                  val pLeft = priceColLeft ?: return
+                  val pRight = priceColRight ?: return
+                  val pMid = priceMidDivider ?: return
+                  val pTicker = priceTickerRow ?: return
+
+                  val isVerticalNarrow = (layoutModeIdx == 3)
+                  val boardWidth = if (isVerticalNarrow) dp(268f) else dp(448f)
+
+                  cRow.layoutParams = LinearLayout.LayoutParams(boardWidth, LinearLayout.LayoutParams.WRAP_CONTENT)
+                  dBand.layoutParams = LinearLayout.LayoutParams(boardWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                      topMargin = dp(5f)
+                  }
+                  qBand.layoutParams = LinearLayout.LayoutParams(boardWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                      topMargin = dp(3f)
+                  }
+                  pWrap.layoutParams = LinearLayout.LayoutParams(boardWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                      topMargin = dp(5f)
+                  }
+
+                  solarCircleView.isCompactSize = true
+                  lunarCircleView.isCompactSize = true
+                  cRow.orientation = LinearLayout.HORIZONTAL
+                  sCol.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  lCol.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  cMid.visibility = View.VISIBLE
+
+                  when (layoutModeIdx) {
+                      0 -> {
+                          dBand.visibility = View.VISIBLE
+                          qBand.visibility = View.VISIBLE
+                      }
+                      1 -> {
+                          dBand.visibility = View.VISIBLE
+                          qBand.visibility = View.GONE
+                      }
+                      2 -> {
+                          dBand.visibility = View.GONE
+                          qBand.visibility = View.GONE
+                      }
+                      else -> {
+                          dBand.visibility = View.VISIBLE
+                          qBand.visibility = View.GONE
+                      }
+                  }
+
+                  when (priceDisplayMode) {
+                      0 -> {
+                          pWrap.visibility = View.VISIBLE
+                          pRow.visibility = View.VISIBLE
+                          pTicker.visibility = View.GONE
+                          if (isVerticalNarrow) {
+                              pRow.orientation = LinearLayout.VERTICAL
+                              pMid.visibility = View.GONE
+                              pLeft.layoutParams = LinearLayout.LayoutParams(
+                                  LinearLayout.LayoutParams.MATCH_PARENT,
+                                  LinearLayout.LayoutParams.WRAP_CONTENT
+                              )
+                              pRight.layoutParams = LinearLayout.LayoutParams(
+                                  LinearLayout.LayoutParams.MATCH_PARENT,
+                                  LinearLayout.LayoutParams.WRAP_CONTENT
+                              ).apply { topMargin = dp(6f) }
+                          } else {
+                              pRow.orientation = LinearLayout.HORIZONTAL
+                              pMid.visibility = View.VISIBLE
+                              pLeft.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.15f)
+                              pRight.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.85f)
+                          }
+                      }
+                      1 -> {
+                          pWrap.visibility = View.VISIBLE
+                          pRow.visibility = View.GONE
+                          pTicker.visibility = View.VISIBLE
+                          renderTickerLine()
+                      }
+                      else -> {
+                          pWrap.visibility = View.GONE
+                      }
+                  }
+              }
+
+              private fun applyTextAndCircleColors() {
+                  var mainGrad: IntArray? = null
+                  var accentGrad: IntArray? = null
+                  var numGrad: IntArray? = null
+                  var solidMain = Color.parseColor("#F8FAFC")
+                  var solidAccent = Color.parseColor("#F1B81F")
+                  var solidNum = Color.parseColor("#FDE047")
+
+                  when (textColorIdx) {
+                      0 -> {
+                          mainGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#FBBF24"),
+                              Color.parseColor("#FEF3C7")
+                          )
+                          accentGrad = intArrayOf(
+                              Color.parseColor("#FFF000"),
+                              Color.parseColor("#F1B81F"),
+                              Color.parseColor("#FDE047")
+                          )
+                          numGrad = intArrayOf(
+                              Color.parseColor("#FFF000"),
+                              Color.parseColor("#F59E0B"),
+                              Color.parseColor("#FDE047")
+                          )
+                      }
+                      1 -> {
+                          mainGrad = intArrayOf(
+                              Color.parseColor("#FEF08A"),
+                              Color.parseColor("#FFFFFF"),
+                              Color.parseColor("#E2E8F0")
+                          )
+                          accentGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#F1B81F"),
+                              Color.parseColor("#FEF9C3")
+                          )
+                          numGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#FBBF24"),
+                              Color.parseColor("#FFFFFF")
+                          )
+                      }
+                      2 -> {
+                          mainGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#A7F3D0"),
+                              Color.parseColor("#ECFDF5")
+                          )
+                          accentGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#34D399"),
+                              Color.parseColor("#6EE7B7")
+                          )
+                          numGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#34D399"),
+                              Color.parseColor("#10B981")
+                          )
+                      }
+                      3 -> {
+                          mainGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#BAE6FD"),
+                              Color.parseColor("#ECFEFF")
+                          )
+                          accentGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#38BDF8"),
+                              Color.parseColor("#7DD3FC")
+                          )
+                          numGrad = intArrayOf(
+                              Color.parseColor("#FFE600"),
+                              Color.parseColor("#38BDF8"),
+                              Color.parseColor("#06B6D4")
+                          )
+                      }
+                      else -> {
+                          mainGrad = null
+                          accentGrad = null
+                          numGrad = null
+                          solidMain = Color.parseColor("#F1F5F9")
+                          solidAccent = Color.parseColor("#F1B81F")
+                          solidNum = Color.parseColor("#FDE047")
+                      }
+                  }
+
+                  for (v in staticPrimaryViews) {
+                      v.setTextColor(solidMain)
+                      v.setLeftToRightGradient(mainGrad)
+                  }
+                  for (v in dynamicPrimaryViews) {
+                      v.setTextColor(solidMain)
+                      v.setLeftToRightGradient(mainGrad)
+                  }
+                  for (v in staticAccentViews) {
+                      v.setTextColor(solidAccent)
+                      v.setLeftToRightGradient(accentGrad)
+                  }
+                  for (v in staticHighlightViews) {
+                      v.setTextColor(solidNum)
+                      v.setLeftToRightGradient(numGrad)
+                  }
+                  for (v in dynamicHighlightViews) {
+                      v.setTextColor(solidNum)
+                      v.setLeftToRightGradient(numGrad)
+                  }
+
+                  solarCircleView.palette = DualMedallionCircleView.SOLAR_PALETTE
+                  lunarCircleView.palette = DualMedallionCircleView.LUNAR_PALETTES[
+                      lunarCircleColorIdx.coerceIn(0, DualMedallionCircleView.LUNAR_PALETTES.size - 1)
+                  ]
+              }
+
+              /** Không dùng FLAG_BLUR_BEHIND để tránh nóng máy & giật lag GPU trên TV */
+              private fun applyVisualStyle() {
+                  val card = calendarCard ?: return
+                  val dBand = detailsBand ?: return
+                  val view = rootContainer ?: return
+
+                  val bgAlpha = (((100 - transparencyPercent).coerceIn(0, 100)) * 255) / 100
+                  val innerAlpha = (((100 - transparencyPercent).coerceIn(0, 100)) * 125) / 100
+
+                  val cardDrawable = GradientDrawable().apply {
+                      cornerRadius = dp(16f).toFloat()
+                  }
+                  val innerDrawable = GradientDrawable().apply {
+                      cornerRadius = dp(9f).toFloat()
+                  }
+
+                  if (bgAlpha == 0 || bgThemeIdx == 4) {
+                      cardDrawable.setColor(Color.TRANSPARENT)
+                      innerDrawable.setColor(Color.TRANSPARENT)
+                  } else {
+                      when (bgThemeIdx) {
+                          0 -> {
+                              cardDrawable.setColor(Color.argb(bgAlpha, 11, 12, 16))
+                              innerDrawable.setColor(Color.argb(innerAlpha, 22, 24, 35))
+                          }
+                          1 -> {
+                              cardDrawable.setColor(Color.argb(bgAlpha, 18, 25, 40))
+                              innerDrawable.setColor(Color.argb(innerAlpha, 30, 41, 59))
+                          }
+                          2 -> {
+                              cardDrawable.colors = intArrayOf(
+                                  Color.argb(bgAlpha, 69, 10, 10),
+                                  Color.argb(bgAlpha, 28, 10, 10)
+                              )
+                              cardDrawable.orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                              innerDrawable.setColor(Color.argb(innerAlpha, 24, 8, 8))
+                          }
+                          else -> {
+                              cardDrawable.colors = intArrayOf(
+                                  Color.argb(bgAlpha, 45, 26, 15),
+                                  Color.argb(bgAlpha, 22, 14, 10)
+                              )
+                              cardDrawable.orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                              innerDrawable.setColor(Color.argb(innerAlpha, 18, 12, 9))
+                          }
+                      }
+                  }
+
+                  if (isEditMode && isMoveSubMode) {
+                      cardDrawable.setStroke(dp(2f), Color.parseColor("#00F2FE"))
+                  } else {
+                      cardDrawable.setStroke(0, Color.TRANSPARENT)
+                  }
+
+                  if (bgAlpha > 0 && bgThemeIdx != 4) {
+                      innerDrawable.setStroke(dp(0.8f).coerceAtLeast(1), Color.argb(95, 241, 184, 31))
+                  } else {
+                      innerDrawable.setStroke(0, Color.TRANSPARENT)
+                  }
+
+                  card.background = cardDrawable
+                  dBand.background = innerDrawable
+                  try { windowManager.updateViewLayout(view, params) } catch (_: Throwable) {}
+              }
+
+              private fun applyScale() {
+                  val master = masterLayout ?: return
+                  val s = scalePercent / 100f
+                  master.pivotX = 0f
+                  master.pivotY = 0f
+                  master.scaleX = s
+                  master.scaleY = s
+              }
+
+              private fun addSettingRow(parent: LinearLayout, title: String): TextView {
+                  val row = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                      setPadding(dp(6f), dp(2.2f), dp(6f), dp(2.2f))
+                  }
+
+                  val tvName = TextView(this).apply {
+                      text = title
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10f)
+                      setTextColor(Color.argb(235, 255, 255, 255))
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.92f)
+                  }
+
+                  val tvVal = TextView(this).apply {
+                      setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10f)
+                      typeface = Typeface.DEFAULT_BOLD
+                      setTextColor(Color.parseColor("#FDE047"))
+                      gravity = Gravity.END
+                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.28f)
+                  }
+
+                  row.addView(tvName)
+                  row.addView(tvVal)
+                  settingRowContainers.add(row)
+                  parent.addView(row)
+                  return tvVal
+              }
+
+              private fun adjustSettingValue(dir: Int) {
+                  val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                  when (selectedMenuRow) {
+                      0 -> {
+                          scalePercent = (scalePercent + dir * 5).coerceIn(40, 150)
+                          prefs.putInt(KEY_SCALE_PCT, scalePercent).apply()
+                          applyScale()
+                      }
+                      1 -> {
+                          transparencyPercent = (transparencyPercent + dir * 10).coerceIn(0, 100)
+                          prefs.putInt(KEY_TRANSPARENCY, transparencyPercent).apply()
+                          applyVisualStyle()
+                      }
+                      2 -> {
+                          textColorIdx = (textColorIdx + dir + textThemeNames.size) % textThemeNames.size
+                          prefs.putInt(KEY_TEXT_COLOR, textColorIdx).apply()
+                          applyTextAndCircleColors()
+                      }
+                      3 -> {
+                          lunarCircleColorIdx = (lunarCircleColorIdx + dir + lunarCircleThemeNames.size) % lunarCircleThemeNames.size
+                          prefs.putInt(KEY_LUNAR_CIRCLE_COLOR, lunarCircleColorIdx).apply()
+                          applyTextAndCircleColors()
+                      }
+                      4 -> {
+                          bgThemeIdx = (bgThemeIdx + dir + bgThemeNames.size) % bgThemeNames.size
+                          prefs.putInt(KEY_BG_THEME, bgThemeIdx).apply()
+                          applyVisualStyle()
+                      }
+                      5 -> {
+                          layoutModeIdx = (layoutModeIdx + dir + layoutModeNames.size) % layoutModeNames.size
+                          prefs.putInt(KEY_LAYOUT_MODE, layoutModeIdx).apply()
+                          applyLayoutMode()
+                      }
+                      6 -> {
+                          priceDisplayMode = (priceDisplayMode + dir + priceModeNames.size) % priceModeNames.size
+                          prefs.putInt(KEY_PRICE_MODE, priceDisplayMode).apply()
+                          applyLayoutMode()
+                      }
+                      7 -> {
+                          dayOffset = (dayOffset + dir).coerceIn(-365, 365)
+                          lastRenderedHourKey = ""
+                          refreshCalendarDataUI()
+                      }
+                      8 -> {
+                          isMoveSubMode = true
+                          applyVisualStyle()
+                      }
+                  }
+                  updateSettingsDockUI()
+              }
+
+              private fun updateSettingsDockUI() {
+                  val dock = settingsDock ?: return
+                  val banner = moveHintBanner ?: return
+
+                  if (!isEditMode) {
+                      dock.visibility = View.GONE
+                      banner.visibility = View.GONE
+                      return
+                  }
+
+                  if (isMoveSubMode) {
+                      dock.visibility = View.GONE
+                      banner.visibility = View.VISIBLE
+                      return
+                  }
+
+                  banner.visibility = View.GONE
+                  dock.visibility = View.VISIBLE
+
+                  val scaleLabel = if (scalePercent == 75) "75% (Chuẩn TV 75\")" else "$scalePercent%"
+                  tvValScale.text = "◀ $scaleLabel ▶"
+
+                  val transLabel = when (transparencyPercent) {
+                      0 -> "0% (Nền đặc)"
+                      100 -> "100% (Trong suốt)"
+                      else -> "$transparencyPercent%"
+                  }
+                  tvValTransparency.text = "◀ $transLabel ▶"
+                  tvValTextColor.text = "◀ ${textThemeNames[textColorIdx]} ▶"
+                  tvValLunarCircleColor.text = "◀ ${lunarCircleThemeNames[lunarCircleColorIdx]} ▶"
+                  tvValBgTheme.text = "◀ ${bgThemeNames[bgThemeIdx]} ▶"
+                  tvValLayoutMode.text = "◀ ${layoutModeNames[layoutModeIdx]} ▶"
+                  tvValPriceMode.text = "◀ ${priceModeNames[priceDisplayMode]} (OK: Tải ngay) ▶"
+
+                  val dayLabel = when (dayOffset) {
+                      0 -> "Hôm nay"
+                      -1 -> "Hôm qua (-1)"
+                      1 -> "Ngày mai (+1)"
+                      else -> if (dayOffset > 0) "+$dayOffset ngày" else "$dayOffset ngày"
+                  }
+                  tvValDayOffset.text = "◀ $dayLabel (OK: Hôm nay) ▶"
+
+                  for (i in settingRowContainers.indices) {
+                      val row = settingRowContainers[i]
+                      if (i == selectedMenuRow) {
+                          row.background = GradientDrawable().apply {
+                              cornerRadius = dp(6f).toFloat()
+                              setColor(Color.argb(80, 241, 184, 31))
+                              setStroke(dp(1f), Color.parseColor("#F1B81F"))
+                          }
+                      } else {
+                          row.background = null
+                      }
+                  }
+              }
+
+              fun openEditModeOnHomeScreen() {
+                  mainHandler.postDelayed({
+                      currentForegroundPkg = "com.spocky.projengmenu"
+                      currentLauncherSimpleClass = "mainactivity"
+                      isTopBarSettingsIconFocused = false
+                      enableEditMode(true)
+                  }, 350L)
+              }
+
+              fun enableEditMode(enable: Boolean) {
+                  if (rootContainer == null) ensureOverlayCreated()
+                  val view = rootContainer ?: return
+                  isEditMode = enable
+                  isMoveSubMode = false
+                  selectedMenuRow = 0
+
+                  if (enable) {
+                      view.visibility = View.VISIBLE
+                      params.flags = (params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()) or
+                              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                      view.isFocusable = true
+                      view.isFocusableInTouchMode = true
+                      view.requestFocus()
+                      fetchCloudBoardAsync(force = true, showToast = false)
+                  } else {
+                      params.flags = params.flags or
+                              WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                      verifyActiveWindowAndVisibility()
+                  }
+                  updateSettingsDockUI()
+                  applyVisualStyle()
+              }
+
+              private fun moveBy(dx: Int, dy: Int) {
+                  val view = rootContainer ?: return
+                  val metrics = resources.displayMetrics
+                  params.x = (params.x + dx).coerceIn(-dp(220f), metrics.widthPixels - dp(60f))
+                  params.y = (params.y + dy).coerceIn(-dp(120f), metrics.heightPixels - dp(40f))
+                  try { windowManager.updateViewLayout(view, params) } catch (_: Throwable) {}
+                  savePosition()
+              }
+
+              private fun savePosition() {
+                  getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                      .putInt(KEY_X, params.x)
+                      .putInt(KEY_Y, params.y)
+                      .apply()
+              }
+
+              override fun onInterrupt() {}
+
+              override fun onDestroy() {
+                  super.onDestroy()
+                  instance = null
+                  mainHandler.removeCallbacksAndMessages(null)
+                  try { unregisterReceiver(systemEventReceiver) } catch (_: Throwable) {}
+                  try { connectivityManager?.unregisterNetworkCallback(networkCallback) } catch (_: Throwable) {}
+                  rootContainer?.let {
+                      try { windowManager.removeView(it) } catch (_: Throwable) {}
+                  }
+                  rootContainer = null
+              }
+          }
+          EOF
+
+          # 4.10. Tạo MainActivity.kt
+          cat << 'EOF' > app/src/main/java/com/daklak/eakiet/lichvannien/MainActivity.kt
+          package com.daklak.eakiet.lichvannien
+
+          import android.app.Activity
+          import android.content.Intent
+          import android.os.Bundle
+          import android.provider.Settings
+          import android.widget.Toast
+
+          class MainActivity : Activity() {
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+
+                  val activeAcc = CalendarAccessibilityService.instance
+                  if (activeAcc != null) {
+                      try {
+                          val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                              addCategory(Intent.CATEGORY_HOME)
+                              flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                          }
+                          startActivity(homeIntent)
+                      } catch (_: Throwable) {}
+
+                      activeAcc.openEditModeOnHomeScreen()
+                      Toast.makeText(
+                          this,
+                          "Đã mở Cài Đặt Lịch Song Tròn & SDUI v13.0! Chọn Mục 9 (OK) để di chuyển",
+                          Toast.LENGTH_LONG
+                      ).show()
+                      finish()
+                      return
+                  }
+
+                  Toast.makeText(
+                      this,
+                      "Hãy bật 'Lịch Vạn Niên' trong Hỗ trợ tiếp cận (hoặc chạy lệnh ADB) để hiển thị!",
+                      Toast.LENGTH_LONG
+                  ).show()
+                  try {
+                      startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                  } catch (_: Throwable) {
+                      try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch (_: Throwable) {}
+                  }
+                  finish()
+              }
+          }
+          EOF
+
+          # 4.11. Tạo AndroidManifest.xml
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.MAIN" />
+                      <category android:name="android.intent.category.HOME" />
+                  </intent>
+                  <package android:name="com.spocky.projengmenu" />
+                  <package android:name="com.oversea.aslauncher" />
+                  <package android:name="com.google.android.apps.tv.launcherx" />
+              </queries>
+
+              <uses-feature
+                  android:name="android.software.leanback"
+                  android:required="false" />
+              <uses-feature
+                  android:name="android.hardware.touchscreen"
+                  android:required="false" />
+
+              <application
+                  android:allowBackup="true"
+                  android:banner="@drawable/ic_banner"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:logo="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:usesCleartextTraffic="true"
+                  android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:banner="@drawable/ic_banner"
+                      android:icon="@mipmap/ic_launcher"
+                      android:roundIcon="@mipmap/ic_launcher_round"
+                      android:logo="@mipmap/ic_launcher"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                          <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <service
+                      android:name=".CalendarAccessibilityService"
+                      android:banner="@drawable/ic_banner"
+                      android:icon="@mipmap/ic_launcher"
+                      android:enabled="true"
+                      android:exported="true"
+                      android:stopWithTask="false"
+                      android:label="Lịch Vạn Niên (Projectivy Widget)"
+                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+                      <intent-filter>
+                          <action android:name="android.accessibilityservice.AccessibilityService" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.accessibilityservice"
+                          android:resource="@xml/accessibility_service_config" />
+                  </service>
+
+              </application>
+          </manifest>
+          EOF
+
+      - name: 5. Biên dịch ra file APK
+        run: |
+          gradle assembleDebug --no-daemon
+
+      - name: 6. Tải file APK lên mục Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LichVanNien_SongTron_SDUI_v13_TV_APK
+          path: app/build/outputs/apk/debug/app-debug.apk
