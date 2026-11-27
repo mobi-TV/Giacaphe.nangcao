@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lịch Song Tròn & Giá Nông Sản SDUI v13.0 — TV Preview</title>
+  <style>
+    :root {
+      --bg-app: #090A0F;
+      --panel-bg: #12141E;
+      --panel-card: #161823;
+      --panel-border: rgba(241, 184, 31, 0.25);
+      --gold: #F1B81F;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Thanh công cụ phía trên */
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 18px;
+      background: #0F111A;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--gold);
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(241, 184, 31, 0.14);
+      border: 1px solid rgba(241, 184, 31, 0.4);
+      color: #FDE047;
+    }
+
+    .api-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 560px;
+      min-width: 240px;
+    }
+
+    .api-bar input {
+      flex: 1;
+      background: #161823;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #F8FAFC;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .api-bar input:focus {
+      border-color: var(--gold);
+    }
+
+    .btn {
+      background: rgba(241, 184, 31, 0.16);
+      color: #FDE047;
+      border: 1px solid rgba(241, 184, 31, 0.45);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: rgba(241, 184, 31, 0.28);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: #CBD5E1;
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .status-pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.12);
+      color: #CBD5E1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    /* Khu vực chính: Sân khấu TV + Bảng Điều Khiển */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      min-height: calc(100vh - 54px);
+    }
+
+    @media (max-width: 980px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sân khấu mô phỏng màn hình TV Projectivy */
+    .tv-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      overflow: hidden;
+      min-height: 540px;
+      transition: background 0.35s ease;
+    }
+
+    .tv-stage.wp-mountain {
+      background:
+        radial-gradient(circle at 22% 20%, rgba(241, 184, 31, 0.18), transparent 42%),
+        radial-gradient(circle at 80% 75%, rgba(56, 189, 248, 0.16), transparent 45%),
+        linear-gradient(155deg, #090C15 0%, #141B2D 45%, #1E293B 100%);
+    }
+
+    .tv-stage.wp-sunset {
+      background:
+        radial-gradient(circle at 75% 22%, rgba(245, 158, 11, 0.32), transparent 45%),
+        linear-gradient(160deg, #120B16 0%, #3B1822 48%, #1C1917 100%);
+    }
+
+    .tv-stage.wp-nature {
+      background:
+        radial-gradient(circle at 30% 25%, rgba(16, 185, 129, 0.25), transparent 45%),
+        linear-gradient(160deg, #061714 0%, #0F2E28 52%, #0B131E 100%);
+    }
+
+    .tv-stage.wp-pure {
+      background: #090A0F;
+    }
+
+    /* Giả lập thanh app phía dưới Projectivy Launcher cho chân thực */
+    .projectivy-mock-dock {
+      position: absolute;
+      bottom: 18px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      gap: 12px;
+      opacity: 0.28;
+      pointer-events: none;
+    }
+
+    .mock-tile {
+      height: 54px;
+      flex: 1;
+      max-width: 110px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .stage-hint {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-size: 11px;
+      color: rgba(226, 232, 240, 0.55);
+      pointer-events: none;
+    }
+
+    /* ============================================================
+       WIDGET LỊCH SONG TRÒN & BẢNG GIÁ SDUI v13.0 (CHUẨN APK)
+       ============================================================ */
+    #widgetAnchor {
+      position: relative;
+      transform-origin: center center;
+      cursor: grab;
+      user-select: none;
+      z-index: 5;
+      transition: transform 0.12s ease;
+    }
+
+    #widgetAnchor:active {
+      cursor: grabbing;
+    }
+
+    .widget-card {
+      width: 468px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: width 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .widget-card.narrow {
+      width: 288px;
+    }
+
+    /* Text Gradient chuẩn GradientTextView.kt */
+    .g-text {
+      text-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.9);
+    }
+
+    .g-primary {
+      background-image: var(--grad-primary);
+      color: var(--solid-primary);
+    }
+
+    .g-accent {
+      background-image: var(--grad-accent);
+      color: var(--solid-accent);
+    }
+
+    .g-num {
+      background-image: var(--grad-num);
+      color: var(--solid-num);
+    }
+
+    .use-gradient .g-primary,
+    .use-gradient .g-accent,
+    .use-gradient .g-num {
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 1.5px 2px rgba(0, 0, 0, 0.85));
+      text-shadow: none;
+    }
+
+    /* Tầng 1: Thanh đỉnh */
+    .top-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 3px;
+      flex-wrap: wrap;
+    }
+
+    .top-clock {
+      font-size: 12.5px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .top-dow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .hoang-dao-pill {
+      font-size: 9.8px;
+      font-weight: 800;
+      padding: 2px 9px;
+      border-radius: 10px;
+      background: #FDE68A;
+      border: 1px solid #D97706;
+      color: #991B1B;
+      line-height: 1.3;
+    }
+
+    .hoang-dao-pill.hac-dao {
+      color: #1F2937;
+      background: #E2E8F0;
+      border-color: #94A3B8;
+    }
+
+    .top-extra {
+      font-size: 10.2px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .h-divider {
+      width: 100%;
+      height: 1.2px;
+      background: rgba(241, 184, 31, 0.52);
+      margin-bottom: 6px;
+    }
+
+    /* Tầng 2: Song Tròn Đối Xứng 50% - 50% */
+    .dual-circles-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cal-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .cal-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+
+    .cal-year {
+      font-size: 11px;
+      font-weight: 700;
+      margin: 1px 0 4px;
+    }
+
+    .cal-mid-divider {
+      width: 1.2px;
+      height: 132px;
+      background: rgba(241, 184, 31, 0.55);
+      margin: 0 6px;
+      flex-shrink: 0;
+    }
+
+    .circle-svg {
+      width: 106px;
+      height: 114px;
+      display: block;
+      overflow: visible;
+    }
+
+    .cal-sub {
+      font-size: 10px;
+      margin-top: 3px;
+      line-height: 1.3;
+    }
+
+    .ram-badge {
+      display: none;
+      margin-top: 3px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 9px;
+      background: linear-gradient(90deg, rgba(120, 53, 15, 0.88), rgba(69, 26, 3, 0.92));
+      border: 1px solid #F1B81F;
+      color: #FDE047;
+    }
+
+    /* Tầng 3: Giờ Hoàng Đạo + Mệnh Ngày + Danh ngôn */
+    .details-band {
+      width: 100%;
+      margin-top: 6px;
+      padding: 5px 9px;
+      border-radius: 9px;
+      font-size: 10px;
+      line-height: 1.45;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .quote-band {
+      width: 100%;
+      margin-top: 4px;
+      text-align: center;
+      font-family: Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-size: 9.8px;
+      line-height: 1.35;
+    }
+
+    /* Tầng 4: Bảng Giá Động SDUI */
+    .price-wrapper {
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    .price-two-cols {
+      width: 100%;
+      display: flex;
+      align-items: stretch;
+    }
+
+    .widget-card.narrow .price-two-cols {
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .price-col-left {
+      flex: 1.15;
+      min-width: 0;
+    }
+
+    .price-col-right {
+      flex: 0.85;
+      min-width: 0;
+    }
+
+    .price-mid-divider {
+      width: 1.1px;
+      background: rgba(241, 184, 31, 0.48);
+      margin: 2px 8px;
+      flex-shrink: 0;
+    }
+
+    .widget-card.narrow .price-mid-divider {
+      display: none;
+    }
+
+    .price-col-title {
+      font-size: 9.6px;
+      font-weight: 800;
+      margin-bottom: 3px;
+      letter-spacing: 0.2px;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.8px 0;
+      gap: 4px;
+    }
+
+    .price-lbl {
+      font-size: 10.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .price-val {
+      font-size: 10.8px;
+      font-weight: 700;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .price-val.muted {
+      font-size: 9.5px;
+      font-weight: 500;
+    }
+
+    .p-badge {
+      font-size: 8.4px;
+      font-weight: 800;
+      padding: 1px 4.5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      line-height: 1.25;
+    }
+
+    .badge-up {
+      color: #6EE7B7;
+      background: rgba(5, 150, 105, 0.58);
+    }
+
+    .badge-down {
+      color: #FCA5A5;
+      background: rgba(220, 38, 38, 0.65);
+    }
+
+    .badge-trend_up {
+      color: #5EEAD4;
+      background: rgba(13, 148, 136, 0.6);
+    }
+
+    .badge-trend_down {
+      color: #FCA5A5;
+      background: rgba(185, 28, 28, 0.65);
+    }
+
+    .badge-alert {
+      color: #FEF08A;
+      background: rgba(180, 83, 9, 0.68);
+    }
+
+    .badge-neutral {
+      color: #E2E8F0;
+      background: rgba(100, 116, 139, 0.38);
+    }
+
+    /* Thanh Ticker 1 dòng */
+    .ticker-row {
+      width: 100%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 2px 0;
+    }
+
+    .ticker-text {
+      font-size: 10.6px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================================
+       BẢNG ĐIỀU KHIỂN BÊN PHẢI (MÔ PHỎNG REMOTE TV + JSON LIVE)
+       ============================================================ */
+    .sidebar {
+      background: var(--panel-bg);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 54px);
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 11px 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+      background: rgba(241, 184, 31, 0.05);
+    }
+
+    .tab-content {
+      padding: 14px 16px;
+      overflow-y: auto;
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .ctrl-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .ctrl-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #CBD5E1;
+      font-weight: 600;
+    }
+
+    .ctrl-label span:last-child {
+      color: #FDE047;
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+    }
+
+    select {
+      background: var(--panel-card);
+      color: #F8FAFC;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 7px 9px;
+      border-radius: 8px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--gold);
+    }
+
+    input[type="range"] {
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-row .btn {
+      flex: 1;
+      text-align: center;
+      padding: 6px 8px;
+    }
+
+    .json-editor {
+      width: 100%;
+      flex: 1;
+      min-height: 330px;
+      background: #0B0D14;
+      color: #A7F3D0;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.45;
+      resize: vertical;
+      outline: none;
+    }
+
+    .json-editor:focus {
+      border-color: var(--gold);
+    }
+
+    .json-err {
+      font-size: 11px;
+      color: #FCA5A5;
+      min-height: 16px;
+    }
+
+    .tip-box {
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 9px 10px;
+    }
+
+    .tip-box strong {
+      color: #FDE047;
+    }
+  </style>
+</head>
+<body>
+  <!-- THANH ĐỈNH KẾT NỐI API -->
+  <header class="topbar">
+    <div class="brand">
+      <span>🌕 LỊCH SONG TRÒN & SDUI</span>
+      <span class="brand-badge">v13.0 Preview</span>
+    </div>
+
+    <div class="api-bar">
+      <input id="apiUrlInput" type="text" value="/api/price" placeholder="Nhập /api/price hoặc https://ten-du-an.vercel.app/api/price" />
+      <button id="btnFetchApi" class="btn">🔄 Tải API</button>
+    </div>
+
+    <div id="apiStatus" class="status-pill">🟡 Đang khởi tạo...</div>
+  </header>
+
+  <main class="workspace">
+    <!-- SÂN KHẤU MÔ PHỎNG TV -->
+    <section id="tvStage" class="tv-stage wp-mountain">
+      <div class="stage-hint">Kéo thả khung bảng để thử vị trí trên nền TV • Dữ liệu đọc trực tiếp chuẩn SDUI v13.0</div>
+
+      <div id="widgetAnchor">
+        <div id="widgetCard" class="widget-card use-gradient">
+          <!-- TẦNG 1: THANH ĐỈNH -->
+          <div class="top-bar">
+            <span id="tvTopClock" class="g-text g-num top-clock">🕒 08:30:00</span>
+            <span id="tvTopDow" class="g-text g-primary top-dow">• THỨ BẢY •</span>
+            <span id="tvHoangDaoPill" class="hoang-dao-pill">★ HOÀNG ĐẠO</span>
+          </div>
+          <div id="tvTopExtra" class="g-text g-primary top-extra" style="display:none;"></div>
+          <div class="h-divider"></div>
+
+          <!-- TẦNG 2: SONG TRÒN ĐỐI XỨNG -->
+          <div class="dual-circles-row">
+            <!-- CỘT TRÁI: DƯƠNG LỊCH -->
+            <div class="cal-col">
+              <div class="g-text g-accent cal-title">DƯƠNG LỊCH</div>
+              <div id="tvSolarYear" class="g-text g-primary cal-year">Năm: 2026</div>
+              <svg id="solarCircleSvg" class="circle-svg" viewBox="0 0 110 118" aria-label="Vòng tròn Dương lịch"></svg>
+              <div id="tvSolarSub" class="g-text g-primary cal-sub">Tuần 48 • Hôm nay</div>
+            </div>
+
+            <div class="cal-mid-divider"></div>
+
+            <!-- CỘT PHẢI: ÂM LỊCH -->
+            <div class="cal-col">
+              <div class="g-text g-accent cal-title">ÂM LỊCH</div>
+              <div id="tvLunarYear" class="g-text g-primary cal-year">Năm: Bính Ngọ</div>
+              <svg id="lunarCircleSvg" class="circle-svg" viewBox="0 0 110 118" aria-label="Vòng tròn Âm lịch"></svg>
+              <div id="tvLunarSub" class="g-text g-primary cal-sub">Ngày -- • Thg --</div>
+              <div id="tvRamBadge" class="ram-badge">🌕 HÔM NAY NGÀY RẰM</div>
+            </div>
+          </div>
+
+          <!-- TẦNG 3: GIỜ HOÀNG ĐẠO & MỆNH NGÀY & DANH NGÔN -->
+          <div id="detailsBand" class="details-band">
+            <div id="tvGioHoangDao" class="g-text g-primary">★ Giờ Hoàng Đạo: --</div>
+            <div id="tvMenhNgay" class="g-text g-primary" style="margin-top:2px;">✦ Mệnh: --</div>
+          </div>
+          <div id="quoteBand" class="g-text g-primary quote-band"></div>
+
+          <!-- TẦNG 4: BẢNG GIÁ ĐỘNG SDUI -->
+          <div id="priceWrapper" class="price-wrapper">
+            <div class="h-divider"></div>
+            <div id="priceTwoCols" class="price-two-cols">
+              <div class="price-col-left">
+                <div id="tvCol1Title" class="g-text g-accent price-col-title">NÔNG SẢN ĐẮK LẮK (VNĐ/KG)</div>
+                <div id="col1Items"></div>
+              </div>
+              <div class="price-mid-divider"></div>
+              <div class="price-col-right">
+                <div id="tvCol2Title" class="g-text g-accent price-col-title">VÀNG & XĂNG DẦU (VÙNG 2)</div>
+                <div id="col2Items"></div>
+              </div>
+            </div>
+
+            <!-- THANH TICKER 1 DÒNG -->
+            <div id="tickerRow" class="ticker-row">
+              <span id="tvTickerText" class="g-text g-num ticker-text">☕ Đang tải dữ liệu...</span>
+              <span id="tvTickerBadge" class="p-badge" style="display:none;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="projectivy-mock-dock" aria-hidden="true">
+        <div class="mock-tile"></div>
+        <div class="mock-tile"></div>
+        <div class="mock-tile"></div>
+        <div class="mock-tile"></div>
+        <div class="mock-tile"></div>
+        <div class="mock-tile"></div>
+      </div>
+    </section>
+
+    <!-- BẢNG ĐIỀU KHIỂN REMOTE TV & JSON TRỰC TIẾP -->
+    <aside class="sidebar">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tabRemote">🎛️ Menu Remote TV</button>
+        <button class="tab-btn" data-tab="tabJson">🧩 Sửa JSON SDUI</button>
+      </div>
+
+      <!-- TAB 1: MENU CÀI ĐẶT Y HỆT APK -->
+      <div id="tabRemote" class="tab-content active">
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>1. Cỡ bảng (Scale TV)</span><span id="lblScale">100%</span></label>
+          <input id="rngScale" type="range" min="40" max="150" step="5" value="100" />
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>2. Độ trong suốt nền</span><span id="lblAlpha">20%</span></label>
+          <input id="rngAlpha" type="range" min="0" max="100" step="10" value="20" />
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>3. Màu chữ & tiêu đề</span></label>
+          <select id="selTextColor">
+            <option value="0">Vàng Rực → Hổ Phách → Kem</option>
+            <option value="1">Vàng Rực → Trắng Ngọc Trai</option>
+            <option value="2">Vàng Rực → Xanh Ngọc Lục Bảo</option>
+            <option value="3">Vàng Rực → Xanh Băng Cyan</option>
+            <option value="4">Trắng Kem & Vàng Kim (Đơn sắc)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>4. Màu vòng tròn Âm lịch</span></label>
+          <select id="selLunarColor">
+            <option value="0">Ánh Trăng Lam (Xanh Dương)</option>
+            <option value="1">Ngọc Bích Tây Nguyên (Xanh Lá)</option>
+            <option value="2">Đỏ Son Lịch Bloc (Đỏ Vàng)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>5. Chủ đề nền thẻ</span></label>
+          <select id="selBgTheme">
+            <option value="0">Đen Obsidian #0B0C10 (Mặc định)</option>
+            <option value="1">Kính Đen Slate #121928</option>
+            <option value="2">Đỏ Đô Hoàng Gia</option>
+            <option value="3">Nâu Trầm Hương</option>
+            <option value="4">Trong suốt hoàn toàn</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>6. Kiểu bố cục lịch</span></label>
+          <select id="selLayoutMode">
+            <option value="0">Đầy đủ (Song Tròn + Giờ/Mệnh + Danh ngôn)</option>
+            <option value="1">Gọn (Song Tròn + Giờ/Mệnh, ẩn Danh ngôn)</option>
+            <option value="2">Siêu gọn (Chỉ Song Tròn + Bảng Giá)</option>
+            <option value="3">Dọc 1 Cột (Cho góc màn hình hẹp)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>7. Chế độ Bảng giá Động</span></label>
+          <select id="selPriceMode">
+            <option value="0">Đầy đủ 2 Cột Động</option>
+            <option value="1">Thanh 1 Dòng tự xoay</option>
+            <option value="2">Ẩn Bảng Giá</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>8. Xem thử ngày khác</span><span id="lblDayOffset">Hôm nay</span></label>
+          <div class="btn-row">
+            <button id="btnPrevDay" class="btn btn-ghost">◀ Hôm qua</button>
+            <button id="btnToday" class="btn">Hôm nay</button>
+            <button id="btnNextDay" class="btn btn-ghost">Ngày mai ▶</button>
+          </div>
+        </div>
+
+        <div class="ctrl-group">
+          <label class="ctrl-label"><span>9. Hình nền TV thử độ nổi</span></label>
+          <select id="selWallpaper">
+            <option value="wp-mountain">Nền Đêm Tây Nguyên (Mặc định)</option>
+            <option value="wp-sunset">Nền Hoàng Hôn Đỏ Đô</option>
+            <option value="wp-nature">Nền Xanh Rừng Cà Phê</option>
+            <option value="wp-pure">Đen Tuyền #090A0F</option>
+          </select>
+        </div>
+
+        <button id="btnResetPos" class="btn btn-ghost" style="width:100%;">🎯 Căn lại chính giữa màn hình</button>
+
+        <div class="tip-box">
+          <strong>Mẹo dùng trên AI Studio:</strong> Khi chạy ở AI Studio không có sẵn <code>/api/price</code>, trang tự hiển thị dữ liệu mẫu. Bạn chỉ cần dán link <code>https://ten-du-an.vercel.app/api/price</code> lên ô phía trên rồi bấm <strong>Tải API</strong> để xem số thật trực tiếp.
+        </div>
+      </div>
+
+      <!-- TAB 2: CHỈNH SỬA TRỰC TIẾP JSON SDUI -->
+      <div id="tabJson" class="tab-content">
+        <div class="tip-box">
+          Thử thêm/xóa dòng trong <strong>col1.items</strong>, <strong>col2.items</strong>, sửa <strong>config.topExtra</strong> hoặc <strong>config.quote</strong> rồi bấm <strong>Áp dụng JSON</strong> để xem ngay giao diện trên TV sẽ thay đổi thế nào.
+        </div>
+        <textarea id="jsonEditor" class="json-editor" spellcheck="false"></textarea>
+        <div id="jsonErr" class="json-err"></div>
+        <div class="btn-row">
+          <button id="btnApplyJson" class="btn">✨ Áp dụng JSON</button>
+          <button id="btnResetMock" class="btn btn-ghost">↩️ Dữ liệu mẫu</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // =========================================================================
+    // 1. BỘ TÍNH LỊCH ÂM - DƯƠNG VIỆT NAM (ĐỒNG BỘ 100% VỚI VietCalendarEngine.kt)
+    // =========================================================================
+    const CAN = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"];
+    const CHI = ["Tí", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"];
+    const ZODIAC = ["🐀", "🐃", "🐅", "🐈", "🐉", "🐍", "🐎", "🐐", "🐒", "🐓", "🐕", "🐖"];
+    const HOUR_RANGES = [
+      "23-1h", "1-3h", "3-5h", "5-7h", "7-9h", "9-11h",
+      "11-13h", "13-15h", "15-17h", "17-19h", "19-21h", "21-23h"
+    ];
+    const NAP_AM = [
+      "Hải trung kim (Vàng trong biển)", "Lư trung hỏa (Lửa trong lò)", "Đại lâm mộc (Gỗ rừng già)",
+      "Lộ bàng thổ (Đất ven đường)", "Kiếm phong kim (Vàng mũi kiếm)", "Sơn đầu hỏa (Lửa trên núi)",
+      "Giản hạ thủy (Nước dưới suối)", "Thành đầu thổ (Đất trên thành)", "Bạch lạp kim (Vàng chân đèn)",
+      "Dương liễu mộc (Gỗ cây dương)", "Tuyền trung thủy (Nước trong suối)", "Ốc thượng thổ (Đất nóc nhà)",
+      "Tích lịch hỏa (Lửa sấm sét)", "Tùng bách mộc (Gỗ tùng bách)", "Trường lưu thủy (Nước chảy mạnh)",
+      "Sa trung kim (Vàng trong cát)", "Sơn hạ hỏa (Lửa dưới núi)", "Bình địa mộc (Gỗ đồng bằng)",
+      "Bích thượng thổ (Đất trên vách)", "Kim bạch kim (Vàng pha bạc)", "Phú đăng hỏa (Lửa đèn to)",
+      "Thiên hà thủy (Nước trên trời)", "Đại dịch thổ (Đất khu lớn)", "Thoa xuyến kim (Vàng trang sức)",
+      "Tang đố mộc (Gỗ cây dâu)", "Đại khê thủy (Nước khe lớn)", "Sa trung thổ (Đất pha cát)",
+      "Thiên thượng hỏa (Lửa trên trời)", "Thạch lựu mộc (Gỗ cây lựu đá)", "Đại hải thủy (Nước biển lớn)"
+    ];
+    const QUOTES = [
+      ["Hạnh phúc không phải là đích đến, mà là hành trình chúng ta đang đi mỗi ngày.", "Danh ngôn sống"],
+      ["Thành công là tổng hợp của những nỗ lực nhỏ bé được lặp lại ngày qua ngày.", "Robert Collier"],
+      ["Sự giản dị là đỉnh cao cuối cùng của mọi sự tinh tế.", "Leonardo da Vinci"],
+      ["Mỗi buổi sáng thức dậy là một trang giấy mới để viết nên điều tốt đẹp.", "Khuyết danh"],
+      ["Có chí thì nên, kiên nhẫn bền bỉ ắt gặt hái quả ngọt.", "Tục ngữ Việt Nam"],
+      ["Thời gian là tài sản quý giá nhất mà con người có thể trao tặng cho nhau.", "Theophrastus"],
+      ["Tâm an thì vạn sự an, lòng rộng thì phúc lộc tự tìm đến.", "Triết lý phương Đông"],
+      ["Trí tuệ rộng rãi và tâm hồn năng động chính là cội nguồn của thành công.", "D. Đi-đơ-rô"],
+      ["Gieo hạt cần cù hôm nay để mùa sau gặt trọn niềm vui.", "Ngạn ngữ nhà nông"],
+      ["Bình tĩnh trước giông bão mới thấy rõ ánh mặt trời phía trước.", "Danh ngôn sống"],
+      ["Gia đình hòa thuận là nền móng vững chắc nhất của sự thịnh vượng.", "Cổ nhân"],
+      ["Biết đủ là giàu, biết dừng là khôn, biết cho đi là hạnh phúc.", "Lão Tử"]
+    ];
+
+    function jdFromDate(dd, mm, yy) {
+      const a = Math.floor((14 - mm) / 12);
+      const y = yy + 4800 - a;
+      const m = mm + 12 * a - 3;
+      let jd = dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+      if (jd < 2299161) {
+        jd = dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - 32083;
+      }
+      return jd;
+    }
+
+    function getNewMoonDay(k, timeZone) {
+      const T = k / 1236.85;
+      const T2 = T * T;
+      const T3 = T2 * T;
+      const dr = Math.PI / 180;
+      let Jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * T2 - 0.000000155 * T3;
+      Jd1 += 0.00033 * Math.sin((166.56 + 132.87 * T - 0.009173 * T2) * dr);
+      const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
+      const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
+      const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+      let C1 = (0.1734 - 0.000393 * T) * Math.sin(M * dr) + 0.0021 * Math.sin(2 * dr * M);
+      C1 = C1 - 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+      C1 -= 0.0004 * Math.sin(dr * 3 * Mpr);
+      C1 = C1 + 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
+      C1 = C1 - 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
+      C1 = C1 - 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
+      C1 += 0.0010 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
+      const deltat = T < -11
+        ? 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3
+        : -0.000278 + 0.000265 * T + 0.000262 * T2;
+      return Math.floor(Jd1 + C1 - deltat + 0.5 + timeZone / 24);
+    }
+
+    function getSunLongitude(jdn, timeZone) {
+      const T = (jdn - 2451545.5 - timeZone / 24) / 36525;
+      const T2 = T * T;
+      const dr = Math.PI / 180;
+      const M = 357.52910 + 35999.05030 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+      const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+      let DL = (1.914600 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+      DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.000290 * Math.sin(dr * 3 * M);
+      let L = (L0 + DL) * dr;
+      L -= Math.PI * 2 * Math.floor(L / (Math.PI * 2));
+      return Math.floor(L / Math.PI * 6);
+    }
+
+    function getLunarMonth11(yy, timeZone) {
+      const off = jdFromDate(31, 12, yy) - 2415021;
+      const k = Math.floor(off / 29.530588853);
+      let nm = getNewMoonDay(k, timeZone);
+      if (getSunLongitude(nm, timeZone) >= 9) nm = getNewMoonDay(k - 1, timeZone);
+      return nm;
+    }
+
+    function getLeapMonthOffset(a11, timeZone) {
+      const k = Math.floor((a11 - 2415021.076998695) / 29.530588853 + 0.5);
+      let last = 0, i = 1;
+      let arc = getSunLongitude(getNewMoonDay(k + i, timeZone), timeZone);
+      do {
+        last = arc;
+        i++;
+        arc = getSunLongitude(getNewMoonDay(k + i, timeZone), timeZone);
+      } while (arc !== last && i < 14);
+      return i - 1;
+    }
+
+    function convertSolar2Lunar(dd, mm, yy, timeZone = 7) {
+      const dayNumber = jdFromDate(dd, mm, yy);
+      const k = Math.floor((dayNumber - 2415021.076998695) / 29.530588853);
+      let monthStart = getNewMoonDay(k + 1, timeZone);
+      if (monthStart > dayNumber) monthStart = getNewMoonDay(k, timeZone);
+      let a11 = getLunarMonth11(yy, timeZone);
+      let b11 = a11;
+      let lunarYear;
+      if (a11 >= monthStart) {
+        lunarYear = yy;
+        a11 = getLunarMonth11(yy - 1, timeZone);
+      } else {
+        lunarYear = yy + 1;
+        b11 = getLunarMonth11(yy + 1, timeZone);
+      }
+      const lunarDay = dayNumber - monthStart + 1;
+      const diff = Math.floor((monthStart - a11) / 29);
+      let lunarMonth = diff + 11;
+      if (b11 - a11 > 365) {
+        const leapMonthDiff = getLeapMonthOffset(a11, timeZone);
+        if (diff >= leapMonthDiff) lunarMonth = diff + 10;
+      }
+      if (lunarMonth > 12) lunarMonth -= 12;
+      if (lunarMonth >= 11 && diff < 4) lunarYear -= 1;
+      return [lunarDay, lunarMonth, lunarYear];
+    }
+
+    function getVietnamDateParts(dayOffset = 0) {
+      const now = new Date();
+      const shifted = new Date(now.getTime() + dayOffset * 86400000);
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        weekday: "short", hour12: false
+      });
+      const parts = {};
+      for (const p of fmt.formatToParts(shifted)) parts[p.type] = p.value;
+      const hour = parts.hour === "24" ? 0 : parseInt(parts.hour, 10);
+      return {
+        dd: parseInt(parts.day, 10),
+        mm: parseInt(parts.month, 10),
+        yy: parseInt(parts.year, 10),
+        hour,
+        min: parseInt(parts.minute, 10),
+        sec: parseInt(parts.second, 10),
+        weekday: parts.weekday
+      };
+    }
+
+    function computeCalendar(dayOffset = 0) {
+      const p = getVietnamDateParts(dayOffset);
+      const pTom = getVietnamDateParts(dayOffset + 1);
+      const dowMap = {
+        Mon: "THỨ HAI", Tue: "THỨ BA", Wed: "THỨ TƯ", Thu: "THỨ NĂM",
+        Fri: "THỨ SÁU", Sat: "THỨ BẢY", Sun: "CHỦ NHẬT"
+      };
+      const jd = jdFromDate(p.dd, p.mm, p.yy);
+      const [lunarD, lunarM, lunarY] = convertSolar2Lunar(p.dd, p.mm, p.yy, 7);
+      const [tomLunarD, tomLunarM] = convertSolar2Lunar(pTom.dd, pTom.mm, pTom.yy, 7);
+
+      const startOfYearJd = jdFromDate(1, 1, p.yy);
+      const weekOfYear = Math.floor((jd - startOfYearJd) / 7) + 1;
+
+      let lunarSpecialReminder = null;
+      let isRamOrMung1Today = false;
+      if (lunarD === 1) {
+        lunarSpecialReminder = `🌕 HÔM NAY MÙNG 1 THÁNG ${lunarM} ÂM`;
+        isRamOrMung1Today = true;
+      } else if (lunarD === 15) {
+        lunarSpecialReminder = `🌕 HÔM NAY NGÀY RẰM THÁNG ${lunarM}`;
+        isRamOrMung1Today = true;
+      } else if (tomLunarD === 1) {
+        lunarSpecialReminder = `🌘 NGÀY MAI MÙNG 1 THÁNG ${tomLunarM} ÂM`;
+      } else if (lunarD === 14) {
+        lunarSpecialReminder = `🌖 NGÀY MAI LÀ RẰM THÁNG ${lunarM}`;
+      }
+
+      const dayCanIdx = (jd + 9) % 10;
+      const dayChiIdx = (jd + 1) % 12;
+      const yearCanIdx = (lunarY + 6) % 10;
+      const yearChiIdx = (lunarY + 8) % 12;
+      const monthCanIdx = (lunarY * 12 + lunarM + 3) % 10;
+      const monthChiIdx = (lunarM + 1) % 12;
+
+      const startRatCanIdx = (dayCanIdx % 5) * 2;
+      const curHourChiIdx = Math.floor((p.hour + 1) / 2) % 12;
+      const curHourCanIdx = (startRatCanIdx + curHourChiIdx) % 10;
+
+      const hdTable = [
+        [0, 1, 3, 6, 8, 9], [2, 3, 5, 8, 10, 11], [0, 1, 4, 5, 7, 10],
+        [0, 2, 3, 6, 7, 9], [2, 4, 5, 8, 9, 11], [1, 4, 6, 7, 10, 11]
+      ];
+      const hdHours = hdTable[dayChiIdx % 6];
+      const isCurHourHD = hdHours.includes(curHourChiIdx);
+      const gioHoangDaoShort = hdHours.map(h => `${CHI[h]} (${HOUR_RANGES[h]})`).join(", ");
+
+      const startChiMap = { 1: 0, 7: 0, 2: 2, 8: 2, 3: 4, 9: 4, 4: 6, 10: 6, 5: 8, 11: 8, 6: 10, 12: 10 };
+      const offsetHD = (dayChiIdx - startChiMap[lunarM] + 12) % 12;
+      const isHoangDaoDay = [0, 1, 4, 5, 7, 10].includes(offsetHD);
+
+      let sexIdx = 0;
+      for (let i = 0; i < 60; i++) {
+        if (i % 10 === dayCanIdx && i % 12 === dayChiIdx) { sexIdx = i; break; }
+      }
+      const menhNapAm = NAP_AM[Math.floor(sexIdx / 2) % NAP_AM.length];
+      const [quoteText, quoteAuthor] = QUOTES[jd % QUOTES.length];
+
+      return {
+        solarDay: String(p.dd).padStart(2, "0"),
+        solarMonth: String(p.mm).padStart(2, "0"),
+        solarYear: p.yy,
+        weekOfYear,
+        dayOfWeekStr: dowMap[p.weekday] || "THỨ BẢY",
+        clockStr: `${String(p.hour).padStart(2, "0")}:${String(p.min).padStart(2, "0")}:${String(p.sec).padStart(2, "0")}`,
+        lunarDay: String(lunarD).padStart(2, "0"),
+        lunarMonth: String(lunarM).padStart(2, "0"),
+        yearCanChi: `${CAN[yearCanIdx]} ${CHI[yearChiIdx]}`,
+        monthCanChi: `${CAN[monthCanIdx]} ${CHI[monthChiIdx]}`,
+        dayCanChi: `${CAN[dayCanIdx]} ${CHI[dayChiIdx]}`,
+        currentHourCanChi: `${CAN[curHourCanIdx]} ${CHI[curHourChiIdx]}`,
+        isCurrentHourHoangDao: isCurHourHD,
+        zodiacEmoji: ZODIAC[dayChiIdx],
+        isHoangDaoDay,
+        gioHoangDaoShort,
+        menhNapAm,
+        quoteText,
+        quoteAuthor,
+        lunarSpecialReminder,
+        isRamOrMung1Today
+      };
+    }
+
+    // =========================================================================
+    // 2. VẼ VÒNG TRÒN SONG TRÒN BẰNG SVG (ĐỒNG BỘ DualMedallionCircleView.kt)
+    // =========================================================================
+    const SOLAR_PALETTE = {
+      id: "solarGrad",
+      bg: ["#FFE600", "#FACC15", "#D97706"],
+      rim: "#F59E0B", text: "#3B2810", sub: "#5C3A12",
+      div: "rgba(59, 40, 16, 0.48)", badgeBg: "#FFFBEB", badgeBorder: "#D97706"
+    };
+
+    const LUNAR_PALETTES = [
+      {
+        id: "lunarGrad0",
+        bg: ["#E0F2FE", "#38BDF8", "#0284C7"],
+        rim: "#38BDF8", text: "#082F49", sub: "#0C4A6E",
+        div: "rgba(8, 47, 73, 0.45)", badgeBg: "#F0F9FF", badgeBorder: "#0284C7"
+      },
+      {
+        id: "lunarGrad1",
+        bg: ["#D1FAE5", "#34D399", "#059669"],
+        rim: "#34D399", text: "#064E3B", sub: "#065F46",
+        div: "rgba(6, 78, 59, 0.45)", badgeBg: "#ECFDF5", badgeBorder: "#059669"
+      },
+      {
+        id: "lunarGrad2",
+        bg: ["#FCA5A5", "#EF4444", "#991B1B"],
+        rim: "#F87171", text: "#FEF9C3", sub: "#FEF08A",
+        div: "rgba(254, 249, 195, 0.52)", badgeBg: "#450A0A", badgeBorder: "#F59E0B"
+      }
+    ];
+
+    function renderCircleSvg(svgEl, dayText, monthText, emoji, pal, isHighlight) {
+      const cx = 55, cy = 53, r = 49;
+      const rimColor = isHighlight ? "#FFE600" : pal.rim;
+      const rimW = isHighlight ? 2.8 : 1.5;
+      const bBorder = isHighlight ? "#FFE600" : pal.badgeBorder;
+
+      svgEl.innerHTML = `
+        <defs>
+          <linearGradient id="${pal.id}" x1="0%" y1="50%" x2="100%" y2="50%">
+            <stop offset="0%" stop-color="${pal.bg[0]}" />
+            <stop offset="52%" stop-color="${pal.bg[1]}" />
+            <stop offset="100%" stop-color="${pal.bg[2]}" />
+          </linearGradient>
+        </defs>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${pal.id})" stroke="${rimColor}" stroke-width="${rimW}" />
+        <circle cx="${cx}" cy="${cy}" r="43.8" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="1.15" />
+        <circle cx="${cx}" cy="${cy}" r="37.2" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="1.15" />
+        <circle cx="${cx}" cy="${cy}" r="40.5" fill="none" stroke="rgba(255,255,255,0.56)" stroke-width="4" stroke-dasharray="4 2.8" />
+        <line x1="${cx}" y1="${cy - 18}" x2="${cx}" y2="${cy + 16}" stroke="${pal.div}" stroke-width="1.2" />
+        <text x="${cx - 16.5}" y="${cy - 8.5}" text-anchor="middle" fill="${pal.sub}" font-size="8.6" font-weight="700">Ngày</text>
+        <text x="${cx + 16.5}" y="${cy - 8.5}" text-anchor="middle" fill="${pal.sub}" font-size="8.6" font-weight="700">Tháng</text>
+        <text x="${cx - 16.5}" y="${cy + 14.5}" text-anchor="middle" fill="${pal.text}" font-size="21.5" font-weight="800">${dayText}</text>
+        <text x="${cx + 16.5}" y="${cy + 14.5}" text-anchor="middle" fill="${pal.text}" font-size="21.5" font-weight="800">${monthText}</text>
+        <circle cx="${cx}" cy="${cy + r - 3}" r="13" fill="${pal.badgeBg}" stroke="${bBorder}" stroke-width="1.6" />
+        <text x="${cx}" y="${cy + r + 2}" text-anchor="middle" font-size="13.5">${emoji}</text>
+      `;
+    }
+
+    // =========================================================================
+    // 3. DỮ LIỆU MẪU SDUI v13.0 & BỘ QUẢN LÝ TRẠNG THÁI
+    // =========================================================================
+    const MOCK_SDUI_DATA = {
+      config: {
+        activeFromHour: 4,
+        activeToHour: 22,
+        tickerSec: 8,
+        topExtra: "🌤️ Ea Kiết 24°C • Mưa 15%",
+        quote: "",
+        nextApiUrl: ""
+      },
+      col1: {
+        title: "NÔNG SẢN ĐẮK LẮK (VNĐ/KG)",
+        items: [
+          { label: "☕ Giá thị trường Đắk Lắk", val: "70,400", badge: "+600", style: "up" },
+          { label: "📈 Giá thực tế (Sàn)", val: "71,900", badge: "▲ Tăng", style: "trend_up" },
+          { label: "🌿 Hồ tiêu Đắk Lắk", val: "124,000", badge: "-2,000", style: "down" },
+          { label: "🍈 Sầu riêng Đắk Lắk", val: "73,000", badge: "0", style: "none" },
+          { label: "🌰 Hạt điều", val: "27,500", badge: "0", style: "none" }
+        ]
+      },
+      col2: {
+        title: "VÀNG & XĂNG DẦU (VÙNG 2)",
+        items: [
+          { label: "🪙 Vàng SJC:", val: "131.0 - 136.0" },
+          { label: "⛽ RON 95-III:", val: "19,430" },
+          { label: "⛽ E5 RON 92:", val: "18,750" },
+          { label: "🛢️ Dầu DO 0.05S:", val: "25,450" },
+          { label: "🕒 Cập nhật:", val: "08:30 - 28/11", muted: true }
+        ]
+      },
+      tickers: [
+        { text: "☕ TT Đắk Lắk: 70,400  •  Sàn: 71,900", badge: "▲ Tăng", style: "trend_up" },
+        { text: "🌿 Tiêu: 124,000  •  🍈 Sầu riêng: 73,000  •  🌰 Điều: 27,500", badge: "", style: "none" },
+        { text: "🪙 SJC: 131.0 - 136.0  •  ⛽ 95: 19,430  •  🛢️ DO: 25,450", badge: "", style: "none" }
+      ]
+    };
+
+    const TEXT_THEMES = [
+      { grad: true, p: "linear-gradient(90deg,#FFE600,#FBBF24,#FEF3C7)", a: "linear-gradient(90deg,#FFF000,#F1B81F,#FDE047)", n: "linear-gradient(90deg,#FFF000,#F59E0B,#FDE047)" },
+      { grad: true, p: "linear-gradient(90deg,#FEF08A,#FFFFFF,#E2E8F0)", a: "linear-gradient(90deg,#FFE600,#F1B81F,#FEF9C3)", n: "linear-gradient(90deg,#FFE600,#FBBF24,#FFFFFF)" },
+      { grad: true, p: "linear-gradient(90deg,#FFE600,#A7F3D0,#ECFDF5)", a: "linear-gradient(90deg,#FFE600,#34D399,#6EE7B7)", n: "linear-gradient(90deg,#FFE600,#34D399,#10B981)" },
+      { grad: true, p: "linear-gradient(90deg,#FFE600,#BAE6FD,#ECFEFF)", a: "linear-gradient(90deg,#FFE600,#38BDF8,#7DD3FC)", n: "linear-gradient(90deg,#FFE600,#38BDF8,#06B6D4)" },
+      { grad: false, sp: "#F1F5F9", sa: "#F1B81F", sn: "#FDE047" }
+    ];
+
+    const state = {
+      scale: 100,
+      transparency: 20,
+      textColorIdx: 0,
+      lunarColorIdx: 0,
+      bgThemeIdx: 0,
+      layoutModeIdx: 0,
+      priceModeIdx: 0,
+      dayOffset: 0,
+      isLiveApi: false,
+      tickerIdx: 0,
+      tickerTimer: null,
+      board: JSON.parse(JSON.stringify(MOCK_SDUI_DATA))
+    };
+
+    // Chuyển đổi cả JSON phẳng cũ sang chuẩn SDUI nếu cần
+    function normalizeSduiPayload(raw) {
+      if (raw && raw.col1 && raw.col2) return raw;
+      if (raw && raw.cfThiTruong) {
+        const infer = (v) => {
+          const s = String(v || "");
+          if (s.includes("Tăng")) return "trend_up";
+          if (s.includes("Giảm")) return "trend_down";
+          if (s.includes("Đi ngang")) return "neutral";
+          if (s.startsWith("+")) return "up";
+          if (s.startsWith("-") && s !== "-0") return "down";
+          return "none";
+        };
+        return {
+          config: { activeFromHour: 4, activeToHour: 22, tickerSec: 8, topExtra: "", quote: "" },
+          col1: {
+            title: "NÔNG SẢN ĐẮK LẮK (VNĐ/KG)",
+            items: [
+              { label: "☕ Giá thị trường Đắk Lắk", val: raw.cfThiTruong || "--", badge: raw.cfThiTruongChg || "0", style: infer(raw.cfThiTruongChg) },
+              { label: "📈 Giá thực tế (Sàn)", val: raw.cfThucTe || "--", badge: raw.cfXuHuong || "➖ Đi ngang", style: infer(raw.cfXuHuong) },
+              { label: "🌿 Hồ tiêu Đắk Lắk", val: raw.pepper || "--", badge: raw.pepperChg || "0", style: infer(raw.pepperChg) },
+              { label: "🍈 Sầu riêng Đắk Lắk", val: raw.durian || "--", badge: raw.durianChg || "0", style: infer(raw.durianChg) },
+              { label: "🌰 Hạt điều", val: raw.cashew || "--", badge: raw.cashewChg || "0", style: infer(raw.cashewChg) }
+            ]
+          },
+          col2: {
+            title: "VÀNG & XĂNG DẦU (VÙNG 2)",
+            items: [
+              { label: "🪙 Vàng SJC:", val: raw.goldSjc || "--" },
+              { label: "⛽ RON 95-III:", val: raw.ron95 || "--" },
+              { label: "⛽ E5 RON 92:", val: raw.e5 || "--" },
+              { label: "🛢️ Dầu DO 0.05S:", val: raw.do005s || "--" },
+              { label: "🕒 Cập nhật:", val: raw.updatedAt || "--:--", muted: true }
+            ]
+          },
+          tickers: [
+            { text: `☕ TT Đắk Lắk: ${raw.cfThiTruong}  •  Sàn: ${raw.cfThucTe}`, badge: raw.cfXuHuong, style: infer(raw.cfXuHuong) },
+            { text: `🌿 Tiêu: ${raw.pepper}  •  🍈 Sầu riêng: ${raw.durian}  •  🌰 Điều: ${raw.cashew}`, badge: "", style: "none" },
+            { text: `🪙 SJC: ${raw.goldSjc}  •  ⛽ 95: ${raw.ron95}  •  🛢️ DO: ${raw.do005s}`, badge: "", style: "none" }
+          ]
+        };
+      }
+      return MOCK_SDUI_DATA;
+    }
+
+    // =========================================================================
+    // 4. RENDER GIAO DIỆN
+    // =========================================================================
+    function applyStyles() {
+      const card = document.getElementById("widgetCard");
+      const details = document.getElementById("detailsBand");
+      const anchor = document.getElementById("widgetAnchor");
+
+      anchor.style.transform = `translate(${dragPos.x}px, ${dragPos.y}px) scale(${state.scale / 100})`;
+
+      // Màu chữ gradient
+      const th = TEXT_THEMES[state.textColorIdx];
+      if (th.grad) {
+        card.classList.add("use-gradient");
+        card.style.setProperty("--grad-primary", th.p);
+        card.style.setProperty("--grad-accent", th.a);
+        card.style.setProperty("--grad-num", th.n);
+      } else {
+        card.classList.remove("use-gradient");
+        card.style.setProperty("--solid-primary", th.sp);
+        card.style.setProperty("--solid-accent", th.sa);
+        card.style.setProperty("--solid-num", th.sn);
+      }
+
+      // Nền thẻ & độ trong suốt (không dùng backdrop blur y hệt APK v13.0)
+      const aCard = (100 - state.transparency) / 100;
+      const aInner = ((100 - state.transparency) / 100) * 0.49;
+
+      if (aCard <= 0 || state.bgThemeIdx === 4) {
+        card.style.background = "transparent";
+        details.style.background = "transparent";
+        details.style.border = "1px solid transparent";
+      } else {
+        if (state.bgThemeIdx === 0) {
+          card.style.background = `rgba(11, 12, 16, ${aCard})`;
+          details.style.background = `rgba(22, 24, 35, ${aInner})`;
+        } else if (state.bgThemeIdx === 1) {
+          card.style.background = `rgba(18, 25, 40, ${aCard})`;
+          details.style.background = `rgba(30, 41, 59, ${aInner})`;
+        } else if (state.bgThemeIdx === 2) {
+          card.style.background = `linear-gradient(180deg, rgba(69,10,10,${aCard}), rgba(28,10,10,${aCard}))`;
+          details.style.background = `rgba(24, 8, 8, ${aInner})`;
+        } else {
+          card.style.background = `linear-gradient(180deg, rgba(45,26,15,${aCard}), rgba(22,14,10,${aCard}))`;
+          details.style.background = `rgba(18, 12, 9, ${aInner})`;
+        }
+        details.style.border = "1px solid rgba(241, 184, 31, 0.37)";
+      }
+
+      // Chế độ bố cục
+      card.classList.toggle("narrow", state.layoutModeIdx === 3);
+      document.getElementById("detailsBand").style.display = state.layoutModeIdx === 2 ? "none" : "block";
+      document.getElementById("quoteBand").style.display = state.layoutModeIdx === 0 ? "block" : "none";
+
+      // Chế độ bảng giá
+      const pWrap = document.getElementById("priceWrapper");
+      const pCols = document.getElementById("priceTwoCols");
+      const pTicker = document.getElementById("tickerRow");
+      if (state.priceModeIdx === 2) {
+        pWrap.style.display = "none";
+      } else if (state.priceModeIdx === 1) {
+        pWrap.style.display = "block";
+        pCols.style.display = "none";
+        pTicker.style.display = "flex";
+        renderTicker();
+      } else {
+        pWrap.style.display = "block";
+        pCols.style.display = "flex";
+        pTicker.style.display = "none";
+      }
+    }
+
+    function renderCalendar() {
+      const info = computeCalendar(state.dayOffset);
+      document.getElementById("tvTopClock").textContent = `🕒 ${info.clockStr}`;
+      document.getElementById("tvTopDow").textContent = `•  ${info.dayOfWeekStr}  •`;
+
+      const pill = document.getElementById("tvHoangDaoPill");
+      pill.textContent = info.isHoangDaoDay ? "★ HOÀNG ĐẠO" : "★ HẮC ĐẠO";
+      pill.classList.toggle("hac-dao", !info.isHoangDaoDay);
+
+      document.getElementById("tvSolarYear").textContent = `Năm: ${info.solarYear}`;
+      renderCircleSvg(
+        document.getElementById("solarCircleSvg"),
+        info.solarDay, info.solarMonth, "☀️", SOLAR_PALETTE, false
+      );
+
+      const dayTag = state.dayOffset === 0 ? "Hôm nay"
+        : state.dayOffset === -1 ? "Hôm qua"
+        : state.dayOffset === 1 ? "Ngày mai"
+        : (state.dayOffset > 0 ? `+${state.dayOffset} ngày` : `${state.dayOffset} ngày`);
+      document.getElementById("tvSolarSub").textContent = `Tuần ${info.weekOfYear} • ${dayTag}`;
+      document.getElementById("lblDayOffset").textContent = dayTag;
+
+      document.getElementById("tvLunarYear").textContent = `Năm: ${info.yearCanChi}`;
+      renderCircleSvg(
+        document.getElementById("lunarCircleSvg"),
+        info.lunarDay, info.lunarMonth, info.zodiacEmoji,
+        LUNAR_PALETTES[state.lunarColorIdx], info.isRamOrMung1Today
+      );
+      document.getElementById("tvLunarSub").textContent = `Ngày ${info.dayCanChi} • Thg ${info.monthCanChi}`;
+
+      const ramBadge = document.getElementById("tvRamBadge");
+      if (info.lunarSpecialReminder) {
+        ramBadge.textContent = info.lunarSpecialReminder;
+        ramBadge.style.display = "inline-block";
+      } else {
+        ramBadge.style.display = "none";
+      }
+
+      const hStar = info.isCurrentHourHoangDao ? "★ " : "";
+      document.getElementById("tvGioHoangDao").textContent = `★ Giờ Hoàng Đạo: ${info.gioHoangDaoShort}`;
+      document.getElementById("tvMenhNgay").textContent = `✦ Mệnh: ${info.menhNapAm}  •  Giờ: ${hStar}${info.currentHourCanChi}`;
+
+      const remoteQuote = (state.board.config?.quote || "").trim();
+      document.getElementById("quoteBand").textContent = remoteQuote
+        ? remoteQuote
+        : `“${info.quoteText}” — ${info.quoteAuthor}`;
+    }
+
+    function createBadgeEl(text, style) {
+      const t = String(text || "").trim();
+      const st = String(style || "").trim().toLowerCase();
+      if (!t || st === "none" || t === "0" || t === "+0" || t === "-0" || t.toLowerCase() === "ổn định") {
+        return null;
+      }
+      const span = document.createElement("span");
+      span.className = "p-badge " + ({
+        up: "badge-up",
+        down: "badge-down",
+        trend_up: "badge-trend_up",
+        trend_down: "badge-trend_down",
+        alert: "badge-alert"
+      }[st] || "badge-neutral");
+      span.textContent = t;
+      return span;
+    }
+
+    function renderDynamicRows(container, items) {
+      container.innerHTML = "";
+      (items || []).forEach(item => {
+        const row = document.createElement("div");
+        row.className = "price-row";
+
+        const lbl = document.createElement("span");
+        lbl.className = "g-text g-primary price-lbl";
+        lbl.textContent = item.label || "";
+        row.appendChild(lbl);
+
+        const val = document.createElement("span");
+        const isUpd = item.muted && String(item.label || "").toLowerCase().includes("cập nhật");
+        val.className = item.muted ? "g-text g-primary price-val muted" : "g-text g-num price-val";
+        val.textContent = isUpd ? `${state.isLiveApi ? "🟢" : "🟡"} ${item.val || "--"}` : (item.val || "--");
+        row.appendChild(val);
+
+        const badge = createBadgeEl(item.badge, item.style);
+        if (badge) row.appendChild(badge);
+
+        container.appendChild(row);
+      });
+    }
+
+    function renderBoard() {
+      const b = state.board;
+      const extraEl = document.getElementById("tvTopExtra");
+      const extraTxt = (b.config?.topExtra || "").trim();
+      if (extraTxt) {
+        extraEl.textContent = extraTxt;
+        extraEl.style.display = "block";
+      } else {
+        extraEl.style.display = "none";
+      }
+
+      document.getElementById("tvCol1Title").textContent = b.col1?.title || "NÔNG SẢN ĐẮK LẮK";
+      document.getElementById("tvCol2Title").textContent = b.col2?.title || "VÀNG & XĂNG DẦU";
+      renderDynamicRows(document.getElementById("col1Items"), b.col1?.items);
+      renderDynamicRows(document.getElementById("col2Items"), b.col2?.items);
+      renderTicker();
+      renderCalendar();
+      restartTickerTimer();
+      document.getElementById("jsonEditor").value = JSON.stringify(b, null, 2);
+    }
+
+    function renderTicker() {
+      const list = state.board.tickers || [];
+      const textEl = document.getElementById("tvTickerText");
+      const badgeEl = document.getElementById("tvTickerBadge");
+      if (!list.length) {
+        textEl.textContent = "☕ Chưa có dữ liệu ticker";
+        badgeEl.style.display = "none";
+        return;
+      }
+      const item = list[state.tickerIdx % list.length];
+      textEl.textContent = typeof item === "string" ? item : (item.text || "");
+      const badge = typeof item === "string" ? null : createBadgeEl(item.badge, item.style);
+      if (badge) {
+        badgeEl.className = badge.className;
+        badgeEl.textContent = badge.textContent;
+        badgeEl.style.display = "inline-block";
+      } else {
+        badgeEl.style.display = "none";
+      }
+    }
+
+    function restartTickerTimer() {
+      if (state.tickerTimer) clearInterval(state.tickerTimer);
+      const sec = Math.max(4, Math.min(60, Number(state.board.config?.tickerSec) || 8));
+      state.tickerTimer = setInterval(() => {
+        if (state.priceModeIdx === 1) {
+          state.tickerIdx++;
+          renderTicker();
+        }
+      }, sec * 1000);
+    }
+
+    // =========================================================================
+    // 5. KẾT NỐI TRỰC TIẾP /api/price (TỰ DỰ PHÒNG DỮ LIỆU MẪU TRÊN AI STUDIO)
+    // =========================================================================
+    async function fetchFromApi() {
+      const url = document.getElementById("apiUrlInput").value.trim() || "/api/price";
+      const statusEl = document.getElementById("apiStatus");
+      statusEl.textContent = "⏳ Đang gọi API...";
+      const t0 = performance.now();
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const raw = await res.json();
+        const ms = Math.round(performance.now() - t0);
+
+        state.board = normalizeSduiPayload(raw);
+        state.isLiveApi = true;
+        statusEl.textContent = `🟢 Live API (${ms}ms)`;
+        document.getElementById("jsonErr").textContent = "";
+        renderBoard();
+      } catch (err) {
+        state.isLiveApi = false;
+        statusEl.textContent = "🟡 Dữ liệu mẫu (chưa nối API)";
+        renderBoard();
+      }
+    }
+
+    // =========================================================================
+    // 6. TƯƠNG TÁC KÉO THẢ & BẢNG ĐIỀU KHIỂN
+    // =========================================================================
+    const dragPos = { x: 0, y: 0 };
+    let isDragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+    const anchorEl = document.getElementById("widgetAnchor");
+
+    anchorEl.addEventListener("pointerdown", (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      baseX = dragPos.x;
+      baseY = dragPos.y;
+      anchorEl.setPointerCapture(e.pointerId);
+    });
+    anchorEl.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      dragPos.x = baseX + (e.clientX - startX);
+      dragPos.y = baseY + (e.clientY - startY);
+      applyStyles();
+    });
+    anchorEl.addEventListener("pointerup", () => { isDragging = false; });
+
+    // Tabs
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn, .tab-content").forEach(el => el.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    // Controls binding
+    document.getElementById("rngScale").addEventListener("input", (e) => {
+      state.scale = Number(e.target.value);
+      document.getElementById("lblScale").textContent = `${state.scale}%`;
+      applyStyles();
+    });
+    document.getElementById("rngAlpha").addEventListener("input", (e) => {
+      state.transparency = Number(e.target.value);
+      document.getElementById("lblAlpha").textContent = `${state.transparency}%`;
+      applyStyles();
+    });
+    document.getElementById("selTextColor").addEventListener("change", (e) => {
+      state.textColorIdx = Number(e.target.value);
+      applyStyles();
+    });
+    document.getElementById("selLunarColor").addEventListener("change", (e) => {
+      state.lunarColorIdx = Number(e.target.value);
+      renderCalendar();
+    });
+    document.getElementById("selBgTheme").addEventListener("change", (e) => {
+      state.bgThemeIdx = Number(e.target.value);
+      applyStyles();
+    });
+    document.getElementById("selLayoutMode").addEventListener("change", (e) => {
+      state.layoutModeIdx = Number(e.target.value);
+      applyStyles();
+    });
+    document.getElementById("selPriceMode").addEventListener("change", (e) => {
+      state.priceModeIdx = Number(e.target.value);
+      applyStyles();
+    });
+    document.getElementById("selWallpaper").addEventListener("change", (e) => {
+      document.getElementById("tvStage").className = `tv-stage ${e.target.value}`;
+    });
+    document.getElementById("btnPrevDay").addEventListener("click", () => { state.dayOffset--; renderCalendar(); });
+    document.getElementById("btnToday").addEventListener("click", () => { state.dayOffset = 0; renderCalendar(); });
+    document.getElementById("btnNextDay").addEventListener("click", () => { state.dayOffset++; renderCalendar(); });
+    document.getElementById("btnResetPos").addEventListener("click", () => {
+      dragPos.x = 0; dragPos.y = 0;
+      applyStyles();
+    });
+
+    document.getElementById("btnFetchApi").addEventListener("click", fetchFromApi);
+    document.getElementById("apiUrlInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") fetchFromApi();
+    });
+
+    document.getElementById("btnApplyJson").addEventListener("click", () => {
+      const errEl = document.getElementById("jsonErr");
+      try {
+        const parsed = JSON.parse(document.getElementById("jsonEditor").value);
+        state.board = normalizeSduiPayload(parsed);
+        errEl.textContent = "";
+        renderBoard();
+      } catch (err) {
+        errEl.textContent = "Lỗi cú pháp JSON: " + err.message;
+      }
+    });
+
+    document.getElementById("btnResetMock").addEventListener("click", () => {
+      state.board = JSON.parse(JSON.stringify(MOCK_SDUI_DATA));
+      state.isLiveApi = false;
+      document.getElementById("jsonErr").textContent = "";
+      document.getElementById("apiStatus").textContent = "🟡 Dữ liệu mẫu";
+      renderBoard();
+    });
+
+    // Khởi chạy
+    applyStyles();
+    renderBoard();
+    setInterval(() => {
+      const p = getVietnamDateParts(state.dayOffset);
+      document.getElementById("tvTopClock").textContent =
+        `🕒 ${String(p.hour).padStart(2, "0")}:${String(p.min).padStart(2, "0")}:${String(p.sec).padStart(2, "0")}`;
+      if (p.min === 0 && p.sec === 0) renderCalendar();
+    }, 1000);
+
+    // Tự động thử kết nối /api/price khi mở trên Vercel
+    fetchFromApi();
+  </script>
+</body>
+
+</html>
