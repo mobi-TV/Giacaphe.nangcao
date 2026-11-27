@@ -1,6 +1,7 @@
 name: Build APK Lịch Song Tròn & Giá Nông Sản (v13.0 Server-Driven UI)
 
-on: [push, workflow_dispatch]
+on:
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
