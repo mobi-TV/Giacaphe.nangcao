@@ -1,7 +1,19 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-// Cấu hình HTTP Client chung: timeout ngắn để đảm bảo không vượt trần 10s của Vercel Hobby
+// ======================================================
+// BẢNG ĐIỀU KHIỂN TỪ XA CHO APP TV (SỬA TẠI ĐÂY KHÔNG CẦN BUILD LẠI APK)
+// ======================================================
+const REMOTE_CONFIG = {
+  activeFromHour: 4,     // Giờ bắt đầu tự động cập nhật (giờ VN)
+  activeToHour: 22,      // Giờ cuối cùng cập nhật trong ngày (23h-03h59 ngủ sâu)
+  tickerSec: 8,          // Tốc độ chuyển nhóm ở chế độ Thanh 1 Dòng (giây)
+  customQuote: '',       // Để trống sẽ dùng danh ngôn theo ngày; nhập chữ để ghi đè (VD: chúc Tết/lễ)
+  nextApiUrl: '',        // Khi muốn đổi sang domain Vercel mới, điền link mới vào đây để TV tự chuyển
+  col1Title: 'NÔNG SẢN ĐẮK LẮK (VNĐ/KG)',
+  col2Title: 'VÀNG & XĂNG DẦU (VÙNG 2)',
+};
+
 const http = axios.create({
   timeout: 5500,
   headers: {
@@ -13,10 +25,9 @@ const http = axios.create({
 });
 
 // ==========================================
-// CÁC HÀM TIỆN ÍCH CHUẨN HÓA DỮ LIỆU
+// HÀM TIỆN ÍCH CHUẨN HÓA DỮ LIỆU
 // ==========================================
 
-/** Định dạng số nguyên có dấu phẩy ngăn cách hàng nghìn: 71500 -> "71,500" */
 function formatNumberVN(num) {
   if (num === null || num === undefined || Number.isNaN(num)) return '--';
   return Math.round(num)
@@ -24,7 +35,6 @@ function formatNumberVN(num) {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-/** Định dạng mức thay đổi có dấu +/-: 600 -> "+600", -2000 -> "-2,000", 0 -> "0" */
 function formatChangeVN(num) {
   if (num === null || num === undefined || Number.isNaN(num)) return '0';
   const rounded = Math.round(num);
@@ -33,10 +43,13 @@ function formatChangeVN(num) {
   return '0';
 }
 
-/**
- * Tách giá VNĐ từ chuỗi bất kỳ (VD: "70.400đ/kg", "70,400", "25.000 - 30.000").
- * Nếu là khoảng giá (range), tự động lấy trung bình làm tròn đến hàng trăm.
- */
+function changeStyleOf(num) {
+  if (!num || Number.isNaN(num)) return 'none';
+  if (num > 0) return 'up';
+  if (num < 0) return 'down';
+  return 'none';
+}
+
 function parseVndPrice(text) {
   if (!text) return null;
   const matches = String(text).match(/\d{1,3}(?:[.,]\d{3})+/g);
@@ -51,11 +64,9 @@ function parseVndPrice(text) {
 
   if (nums.length === 0) return null;
   if (nums.length === 1) return nums[0];
-  // Trung bình khoảng giá, làm tròn bội số 100đ
   return Math.round((nums[0] + nums[1]) / 2 / 100) * 100;
 }
 
-/** Tách mức tăng/giảm từ ô bảng (VD: "+600", "-2,000", "giảm 1.500", "Không đổi") */
 function parseVndChange(text) {
   if (!text) return 0;
   const cleaned = String(text).trim().toLowerCase();
@@ -71,31 +82,23 @@ function parseVndChange(text) {
   return isNegative ? -val : val;
 }
 
-/** Quy đổi mọi đơn vị giá vàng SJC (VNĐ/chỉ, VNĐ/lượng, nghìn/lượng, triệu/lượng) về Triệu/lượng */
 function normalizeGoldToTrieuLuong(raw) {
   if (!raw) return null;
   const str = String(raw).trim();
   const digitsOnly = parseInt(str.replace(/[^\d]/g, ''), 10);
   if (Number.isNaN(digitsOnly) || digitsOnly === 0) return null;
 
-  // Dạng "85.000" (triệu/lượng trong XML SJC) -> 85.0
   if (/^\d{2,3}\.\d{3}$/.test(str)) {
     const f = parseFloat(str);
     if (f >= 50 && f <= 300) return f;
   }
-  // Dạng VNĐ/lượng (VD: 85.000.000 hoặc 131.000.000)
   if (digitsOnly >= 50_000_000) return digitsOnly / 1_000_000;
-  // Dạng VNĐ/chỉ (VD: 8.500.000 hoặc 13.100.000 trên webgia) -> x10 thành lượng
   if (digitsOnly >= 5_000_000) return (digitsOnly * 10) / 1_000_000;
-  // Dạng nghìn đồng/lượng (VD: 85,000 hoặc 131,000)
   if (digitsOnly >= 50_000) return digitsOnly / 1_000;
-  // Dạng nghìn đồng/chỉ (VD: 8,500 hoặc 13,100)
   if (digitsOnly >= 5_000) return (digitsOnly * 10) / 1_000;
-
   return null;
 }
 
-/** Lấy thời gian hiện tại theo múi giờ Việt Nam định dạng "HH:mm - dd/MM" */
 function getVietnamTimestamp() {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -111,11 +114,20 @@ function getVietnamTimestamp() {
   return `${hour}:${get('minute')} - ${get('day')}/${get('month')}`;
 }
 
+function weatherIconFromWmo(code) {
+  if (code === 0) return '☀️';
+  if (code <= 2) return '🌤️';
+  if (code === 3) return '☁️';
+  if (code <= 48) return '🌫️';
+  if (code <= 67) return '🌧️';
+  if (code <= 82) return '🌦️';
+  return '⛈️';
+}
+
 // ==========================================
-// 1. NGUỒN DỮ LIỆU QUỐC TẾ & TỶ GIÁ
+// 1. NGUỒN QUỐC TẾ, TỶ GIÁ & THỜI TIẾT EA KIẾT
 // ==========================================
 
-/** Lấy giá Robusta London kỳ hạn gần nhất (ICEEUR:RC1!) từ TradingView Scanner */
 async function fetchRobustaLondon() {
   try {
     const { data } = await http.post(
@@ -134,7 +146,6 @@ async function fetchRobustaLondon() {
     let changeUsd = typeof row[1] === 'number' ? row[1] : null;
     const changePct = typeof row[2] === 'number' ? row[2] : null;
 
-    // Fallback tính change tuyệt đối nếu TradingView không trả về change_abs
     if (changeUsd === null && close !== null && changePct !== null) {
       changeUsd = close - close / (1 + changePct / 100);
     }
@@ -146,7 +157,6 @@ async function fetchRobustaLondon() {
   }
 }
 
-/** Lấy tỷ giá USD bán ra thực tế từ XML công khai của Vietcombank */
 async function fetchUsdVnd() {
   try {
     const { data } = await http.get(
@@ -159,10 +169,42 @@ async function fetchUsdVnd() {
       const rate = parseFloat(match[1].replace(/,/g, ''));
       if (!Number.isNaN(rate) && rate > 20000) return rate;
     }
-    return 25500; // Mốc dự phòng an toàn nếu VCB bảo trì
+    return 25500;
   } catch (err) {
     console.error('[Vietcombank FX Error]:', err.message);
     return 25500;
+  }
+}
+
+/** Thời tiết xã Ea Kiết, Đắk Lắk (Open-Meteo miễn phí, không cần API key) */
+async function fetchWeatherEaKiet() {
+  try {
+    const { data } = await http.get(
+      'https://api.open-meteo.com/v1/forecast?latitude=12.88&longitude=108.05&current=temperature_2m,weather_code&hourly=precipitation_probability&timezone=Asia%2FHo_Chi_Minh&forecast_days=1',
+      { timeout: 3500 }
+    );
+    const temp = data?.current?.temperature_2m;
+    const code = data?.current?.weather_code ?? 1;
+    if (typeof temp !== 'number') return '';
+
+    const vnHour = parseInt(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour: '2-digit',
+        hour12: false,
+      }).format(new Date()),
+      10
+    );
+    const rainProbs = data?.hourly?.precipitation_probability || [];
+    const rain = typeof rainProbs[vnHour] === 'number' ? rainProbs[vnHour] : null;
+    const icon = weatherIconFromWmo(code);
+
+    return rain !== null
+      ? `${icon} Ea Kiết ${Math.round(temp)}°C • Mưa ${rain}%`
+      : `${icon} Ea Kiết ${Math.round(temp)}°C`;
+  } catch (err) {
+    console.error('[Weather Ea Kiet Error]:', err.message);
+    return '';
   }
 }
 
@@ -170,7 +212,6 @@ async function fetchUsdVnd() {
 // 2. NGUỒN DỮ LIỆU TRONG NƯỚC (ĐẮK LẮK & HÀNG HÓA)
 // ==========================================
 
-/** Giá cà phê nhân xô Đắk Lắk (Primary: giacaphe.com | Fallback: chogia.vn) */
 async function fetchCoffeeDakLak() {
   const sources = [
     'https://giacaphe.com/gia-ca-phe-noi-dia/',
@@ -212,7 +253,6 @@ async function fetchCoffeeDakLak() {
   return { price: null, change: 0 };
 }
 
-/** Giá Hồ tiêu Đắk Lắk (Primary: giatieu.com) */
 async function fetchPepperDakLak() {
   const sources = [
     'https://giatieu.com/gia-tieu-hom-nay/',
@@ -254,7 +294,6 @@ async function fetchPepperDakLak() {
   return { price: null, change: 0 };
 }
 
-/** Giá Sầu riêng Đắk Lắk / Tây Nguyên - ưu tiên Thái đẹp, fallback Ri6 */
 async function fetchDurianDakLak() {
   const sources = [
     'https://chogia.vn/bang-gia-sau-rieng-hom-nay-47777/',
@@ -277,7 +316,6 @@ async function fetchDurianDakLak() {
         if (cells.length < 2) return;
 
         const label = cells[0].toLowerCase();
-        // Lấy cột Tây Nguyên (thường là cột cuối nếu có nhiều vùng, hoặc cột thứ 2)
         const priceCells = cells
           .slice(1)
           .map((c) => parseVndPrice(c))
@@ -305,7 +343,6 @@ async function fetchDurianDakLak() {
   return { price: null, change: 0 };
 }
 
-/** Giá Hạt điều thô Đắk Lắk (Primary: giacatloi.vn | Fallback: banggianongsan.com) */
 async function fetchCashewDakLak() {
   const sources = [
     'https://giacatloi.vn/gia-thu-mua-hat-dieu-tho/',
@@ -347,14 +384,13 @@ async function fetchCashewDakLak() {
   return { price: null, change: 0 };
 }
 
-/** Giá Vàng miếng SJC quy đổi triệu/lượng dạng "85.0 - 87.0" */
 async function fetchGoldSjc() {
-  // Primary: XML chính thức của SJC
   try {
     const { data } = await http.get('https://sjc.com.vn/xml/tygiavang.xml');
-    const match = String(data).match(
-      /<item[^>]*buy="([\d,\.]+)"[^>]*sell="([\d,\.]+)"[^>]*type="[^"]*SJC\s*1L[^"]*"/i
-    ) ||
+    const match =
+      String(data).match(
+        /<item[^>]*buy="([\d,\.]+)"[^>]*sell="([\d,\.]+)"[^>]*type="[^"]*SJC\s*1L[^"]*"/i
+      ) ||
       String(data).match(
         /<item[^>]*type="[^"]*SJC\s*1L[^"]*"[^>]*buy="([\d,\.]+)"[^>]*sell="([\d,\.]+)"/i
       );
@@ -368,7 +404,6 @@ async function fetchGoldSjc() {
     console.error('[SJC XML Error]:', err.message);
   }
 
-  // Fallback: webgia.com
   try {
     const { data } = await http.get('https://webgia.com/gia-vang/sjc/');
     const $ = cheerio.load(data);
@@ -395,7 +430,6 @@ async function fetchGoldSjc() {
   return '--';
 }
 
-/** Giá Xăng dầu Petrolimex Vùng 2 (RON 95-III, E5 RON 92, Dầu DO 0,05S) */
 async function fetchFuelPetrolimexV2() {
   const result = { ron95: null, e5: null, do005s: null };
 
@@ -413,7 +447,6 @@ async function fetchFuelPetrolimexV2() {
       if (cells.length < 3) return;
 
       const name = cells[0];
-      // Bảng Petrolimex chuẩn: [Tên sản phẩm, Vùng 1, Vùng 2] -> lấy cột Vùng 2 (index 2)
       const vung2 = parseVndPrice(cells[2]);
       if (!vung2 || vung2 < 10000 || vung2 > 50000) return;
 
@@ -433,28 +466,24 @@ async function fetchFuelPetrolimexV2() {
 }
 
 // ==========================================
-// 3. HANDLER CHÍNH (VERCEL SERVERLESS FUNCTION)
+// 3. HANDLER CHÍNH (SERVER-DRIVEN UI JSON)
 // ==========================================
 
 module.exports = async function handler(req, res) {
-  // Cấu hình CORS & Edge Caching (CDN Vercel cache 5 phút, serve stale thêm 60s)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader(
-    'Cache-Control',
-    's-maxage=300, stale-while-revalidate=60'
-  );
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Chạy song song toàn bộ 8 nguồn dữ liệu độc lập
   const [
     robustaRes,
     usdRes,
+    weatherRes,
     coffeeRes,
     pepperRes,
     durianRes,
@@ -464,6 +493,7 @@ module.exports = async function handler(req, res) {
   ] = await Promise.allSettled([
     fetchRobustaLondon(),
     fetchUsdVnd(),
+    fetchWeatherEaKiet(),
     fetchCoffeeDakLak(),
     fetchPepperDakLak(),
     fetchDurianDakLak(),
@@ -477,6 +507,7 @@ module.exports = async function handler(req, res) {
       ? robustaRes.value
       : { close: null, changeUsd: 0 };
   const usdVnd = usdRes.status === 'fulfilled' ? usdRes.value : 25500;
+  const topExtra = weatherRes.status === 'fulfilled' ? weatherRes.value : '';
   const coffee =
     coffeeRes.status === 'fulfilled'
       ? coffeeRes.value
@@ -499,50 +530,114 @@ module.exports = async function handler(req, res) {
       ? fuelRes.value
       : { ron95: null, e5: null, do005s: null };
 
-  // ==========================================
-  // CƠ CHẾ TỰ HIỆU CHUẨN (AUTO-CALIBRATION) & XU HƯỚNG
-  // ==========================================
+  // Tự hiệu chuẩn giá cà phê thực tế từ mốc Đắk Lắk + biến động sàn London
   const londonChangeUsd = robusta.changeUsd || 0;
-
-  // Quy đổi biến động sàn London (USD/tấn) -> VNĐ/kg, làm tròn bội số 100đ
   const deltaVndPerKg =
     Math.round(((londonChangeUsd * usdVnd) / 1000) / 100) * 100;
 
-  // Lấy giá cà phê thị trường Đắk Lắk làm mốc chuẩn, cộng/trừ biến động sàn London
   let cfThucTeVal = null;
   if (coffee.price !== null) {
     cfThucTeVal = coffee.price + deltaVndPerKg;
   } else if (robusta.close !== null) {
-    // Dự phòng nếu trang cà phê nội địa lỗi: quy đổi trực tiếp từ giá sàn London
     cfThucTeVal = Math.round(((robusta.close * usdVnd) / 1000) / 100) * 100;
   }
 
   let cfXuHuong = '➖ Đi ngang';
+  let cfTrendStyle = 'neutral';
   if (londonChangeUsd > 0) {
     cfXuHuong = '▲ Tăng';
+    cfTrendStyle = 'trend_up';
   } else if (londonChangeUsd < 0) {
     cfXuHuong = '▼ Giảm';
+    cfTrendStyle = 'trend_down';
   }
 
-  // ==========================================
-  // ĐẦU RA JSON SIÊU NHẸ CHO ANDROID TV
-  // ==========================================
+  const cfThiTruongStr = formatNumberVN(coffee.price);
+  const cfThiTruongChgStr = formatChangeVN(coffee.change);
+  const cfThucTeStr = formatNumberVN(cfThucTeVal);
+  const pepperStr = formatNumberVN(pepper.price);
+  const pepperChgStr = formatChangeVN(pepper.change);
+  const durianStr = formatNumberVN(durian.price);
+  const durianChgStr = formatChangeVN(durian.change);
+  const cashewStr = formatNumberVN(cashew.price);
+  const cashewChgStr = formatChangeVN(cashew.change);
+  const ron95Str = formatNumberVN(fuel.ron95);
+  const e5Str = formatNumberVN(fuel.e5);
+  const do005sStr = formatNumberVN(fuel.do005s);
+  const updatedAt = getVietnamTimestamp();
+
+  // Xuất JSON chuẩn Server-Driven UI (thêm/bớt phần tử trong items -> TV tự vẽ lại)
   const payload = {
-    cfThiTruong: formatNumberVN(coffee.price),
-    cfThiTruongChg: formatChangeVN(coffee.change),
-    cfThucTe: formatNumberVN(cfThucTeVal),
-    cfXuHuong,
-    pepper: formatNumberVN(pepper.price),
-    pepperChg: formatChangeVN(pepper.change),
-    durian: formatNumberVN(durian.price),
-    durianChg: formatChangeVN(durian.change),
-    cashew: formatNumberVN(cashew.price),
-    cashewChg: formatChangeVN(cashew.change),
-    goldSjc,
-    ron95: formatNumberVN(fuel.ron95),
-    e5: formatNumberVN(fuel.e5),
-    do005s: formatNumberVN(fuel.do005s),
-    updatedAt: getVietnamTimestamp(),
+    config: {
+      activeFromHour: REMOTE_CONFIG.activeFromHour,
+      activeToHour: REMOTE_CONFIG.activeToHour,
+      tickerSec: REMOTE_CONFIG.tickerSec,
+      topExtra,
+      quote: REMOTE_CONFIG.customQuote,
+      nextApiUrl: REMOTE_CONFIG.nextApiUrl,
+    },
+    col1: {
+      title: REMOTE_CONFIG.col1Title,
+      items: [
+        {
+          label: '☕ Giá thị trường Đắk Lắk',
+          val: cfThiTruongStr,
+          badge: cfThiTruongChgStr,
+          style: changeStyleOf(coffee.change),
+        },
+        {
+          label: '📈 Giá thực tế (Sàn)',
+          val: cfThucTeStr,
+          badge: cfXuHuong,
+          style: cfTrendStyle,
+        },
+        {
+          label: '🌿 Hồ tiêu Đắk Lắk',
+          val: pepperStr,
+          badge: pepperChgStr,
+          style: changeStyleOf(pepper.change),
+        },
+        {
+          label: '🍈 Sầu riêng Đắk Lắk',
+          val: durianStr,
+          badge: durianChgStr,
+          style: changeStyleOf(durian.change),
+        },
+        {
+          label: '🌰 Hạt điều',
+          val: cashewStr,
+          badge: cashewChgStr,
+          style: changeStyleOf(cashew.change),
+        },
+      ],
+    },
+    col2: {
+      title: REMOTE_CONFIG.col2Title,
+      items: [
+        { label: '🪙 Vàng SJC:', val: goldSjc },
+        { label: '⛽ RON 95-III:', val: ron95Str },
+        { label: '⛽ E5 RON 92:', val: e5Str },
+        { label: '🛢️ Dầu DO 0.05S:', val: do005sStr },
+        { label: '🕒 Cập nhật:', val: updatedAt, muted: true },
+      ],
+    },
+    tickers: [
+      {
+        text: `☕ TT Đắk Lắk: ${cfThiTruongStr}  •  Sàn: ${cfThucTeStr}`,
+        badge: cfXuHuong,
+        style: cfTrendStyle,
+      },
+      {
+        text: `🌿 Tiêu: ${pepperStr}  •  🍈 Sầu riêng: ${durianStr}  •  🌰 Điều: ${cashewStr}`,
+        badge: '',
+        style: 'none',
+      },
+      {
+        text: `🪙 SJC: ${goldSjc}  •  ⛽ 95: ${ron95Str}  •  🛢️ DO: ${do005sStr}`,
+        badge: '',
+        style: 'none',
+      },
+    ],
   };
 
   return res.status(200).json(payload);
